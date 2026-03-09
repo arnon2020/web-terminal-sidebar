@@ -33,38 +33,75 @@ Web-based multi-terminal interface with sidebar management for easy access to mu
 ## Requirements
 
 - **Node.js** 18+ and npm
-- **Docker** (for ttyd backend)
-- **tmux** (optional, pre-installed in Docker image)
+- **ttyd** terminal backend (see installation options below)
+- **tmux** (optional, for multiple windows within a terminal)
 
 ## Installation
 
-### 1. Clone the repository
+### Step 1: Clone the repository
 
 ```bash
 git clone https://github.com/arnon2020/web-terminal-sidebar.git
 cd web-terminal-sidebar
 ```
 
-### 2. Install frontend dependencies
+### Step 2: Install frontend dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Start ttyd backend (Docker)
+### Step 3: Install ttyd backend
+
+Choose **one** of the following methods:
+
+#### Option A: Pre-built Binary (Recommended - Easiest)
+
+```bash
+# Download latest release
+wget https://github.com/tsl0922/ttyd/releases/download/1.7.4/ttyd_linux.x86_64
+sudo mv ttyd_linux.x86_64 /usr/local/bin/ttyd
+sudo chmod +x /usr/local/bin/ttyd
+
+# Run ttyd
+ttyd bash
+```
+
+#### Option B: Build from Source
+
+```bash
+# Install build dependencies
+sudo apt install build-essential libjson-c-dev libwebsockets-dev
+
+# Clone and build
+git clone https://github.com/tsl0922/ttyd.git
+cd ttyd
+mkdir build && cd build
+cmake ..
+make && sudo make install
+
+# Run ttyd
+ttyd bash
+```
+
+#### Option C: Docker
 
 ```bash
 docker run -d -p 7681:7681 tsl0922/ttyd
 ```
 
-Or with tmux pre-installed:
+#### Option D: Snap (Ubuntu/Debian)
 
 ```bash
-docker build -t ttyd-tmux ~/ttyd-tmux
-docker run -d -p 7681:7681 ttyd-tmux
+sudo snap install ttyd
+ttyd bash
 ```
 
-### 4. Start the development server
+**Default URL:** http://localhost:7681
+
+If you use a different port or URL, update `TTYD_URL` in `src/App.jsx`.
+
+### Step 4: Start the development server
 
 ```bash
 npm run dev
@@ -114,9 +151,10 @@ npm run preview
 
 | Component | Technology |
 |-----------|------------|
-| Frontend | React 18.2.0 |
+| Frontend Framework | React 18.2.0 |
 | Build Tool | Vite 5.2.0 |
-| Terminal Backend | ttyd |
+| Terminal Backend | ttyd (C-based web terminal) |
+| Terminal Emulator | xterm.js (via ttyd) |
 | Styling | CSS3 (Flexbox) |
 
 ## Directory Structure
@@ -170,25 +208,39 @@ web-terminal-sidebar/
 
 Make sure ttyd is running:
 ```bash
+# Check if ttyd is running
+ps aux | grep ttyd
+# OR if using Docker
 docker ps | grep ttyd
 ```
 
 If not running, start it:
 ```bash
+# Binary/Source installation
+ttyd bash
+
+# Docker
 docker run -d -p 7681:7681 tsl0922/ttyd
 ```
 
 ### Port 7681 already in use
 
-Stop the existing container:
+Stop the existing process:
 ```bash
+# Find and kill the process
+lsof -ti:7681 | xargs kill -9
+
+# OR if using Docker
 docker stop $(docker ps -q -f publish=7681)
 ```
 
-Or use a different port (update `TTYD_URL` in `src/App.jsx`):
-```bash
-docker run -d -p 7682:7681 tsl0922/ttyd
-```
+Then restart ttyd.
+
+### Can't connect to ttyd
+
+1. Check if ttyd is accessible: http://localhost:7681
+2. Check browser console for errors
+3. Verify `TTYD_URL` in `src/App.jsx` matches your ttyd address
 
 ## License
 
