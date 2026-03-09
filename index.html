@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Terminal - Sidebar</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      overflow: hidden;
+    }
+    
+    .app {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .sidebar {
+      width: 300px;
+      background: #16162a;
+      border-right: 1px solid #0f3460;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+    }
+
+    .sidebar-left {
+      display: flex;
+      flex-direction: column;
+      width: 60px;
+      border-right: 1px solid #0f3460;
+      flex-shrink: 0;
+    }
+
+    .sidebar-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    
+    .sidebar-header {
+      padding: 15px 5px;
+      background: #0f3460;
+      border-bottom: 1px solid #1a1a2e;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 60px;
+    }
+
+    .add-terminal {
+      width: 40px;
+      height: 40px;
+      background: #e94560;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 28px;
+      margin: 10px auto;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .add-terminal:hover {
+      background: #ff6b6b;
+    }
+    
+    .terminal-list {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    
+    .terminal-item {
+      padding: 12px 15px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .terminal-item:hover {
+      background: #1f1f3a;
+    }
+    
+    .terminal-item.active {
+      background: #16213e;
+      border-left-color: #e94560;
+    }
+    
+    .terminal-name {
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .terminal-name:hover {
+      color: #e94560;
+    }
+
+    .terminal-name-input {
+      font-size: 13px;
+      background: #0d0d1a;
+      color: #eee;
+      border: 1px solid #e94560;
+      border-radius: 3px;
+      padding: 4px 8px;
+      outline: none;
+      width: 100%;
+      max-width: 140px;
+    }
+
+    .terminal-name-input:focus {
+      border-color: #ff6b6b;
+    }
+
+    .terminal-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+    }
+    
+    .close-terminal {
+      opacity: 0;
+      background: #e94560;
+      border: none;
+      color: white;
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .terminal-item:hover .close-terminal {
+      opacity: 1;
+    }
+    
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .terminal-container {
+      flex: 1;
+      background: #0d0d1a;
+      position: relative;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    .terminal-wrapper {
+      width: 100%;
+      height: 100%;
+      padding: 0;
+    }
+
+    .terminal-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #0d0d1a;
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .terminal-iframe.active {
+      display: block;
+    }
+
+    #terminal {
+      width: 100%;
+      height: 100%;
+    }
+
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #666;
+      font-size: 14px;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>
