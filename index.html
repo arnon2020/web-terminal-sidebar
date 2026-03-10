@@ -560,6 +560,77 @@
       font-size: 14px;
       z-index: 1;
     }
+
+    /* ==================== CONTEXT MENU ==================== */
+    .context-menu {
+      position: fixed;
+      background: #1a1a2e;
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      z-index: 2000;
+      min-width: 180px;
+      padding: 4px 0;
+      animation: fadeIn 0.1s ease-out;
+    }
+
+    .context-menu-item {
+      padding: 10px 16px;
+      font-size: 13px;
+      color: #ccc;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+
+    .context-menu-item:hover {
+      background: #2a2a4a;
+      color: #eee;
+    }
+
+    .context-menu-danger {
+      color: #e94560;
+    }
+
+    .context-menu-danger:hover {
+      background: #e94560;
+      color: white;
+    }
+
+    .context-menu-divider {
+      height: 1px;
+      background: #0f3460;
+      margin: 4px 0;
+    }
+
+    .context-menu-submenu {
+      position: relative;
+    }
+
+    .context-menu-submenu-items {
+      display: none;
+      position: absolute;
+      left: 100%;
+      top: 0;
+      background: #1a1a2e;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      margin-left: 4px;
+      min-width: 140px;
+    }
+
+    .context-menu-submenu:hover .context-menu-submenu-items,
+    .context-menu-submenu-items:hover {
+      display: block;
+    }
+
+    .context-menu-submenu > .context-menu-item::after {
+      content: '▶';
+      float: right;
+      font-size: 8px;
+      margin-left: 8px;
+    }
   </style>
 </head>
 <body>

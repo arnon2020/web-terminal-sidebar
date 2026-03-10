@@ -87,9 +87,9 @@ useEffect(() => {
 | # | Feature | Status | Started | Completed |
 |---|---------|--------|---------|-----------|
 | 6 | Replace prompt() with Modal | ✅ DONE | 2026-03-10 | 2026-03-10 |
-| 7 | Drag & Drop Reorder | ⬜ TODO | - | - |
-| 8 | Terminal Groups/Tabs | ⬜ TODO | - | - |
-| 9 | Quick Actions Menu (Right-click) | ⬜ TODO | - | - |
+| 7 | Drag & Drop Reorder | ✅ DONE | 2026-03-10 | 2026-03-10 |
+| 8 | Terminal Groups/Tabs | ✅ DONE | 2026-03-10 | 2026-03-10 |
+| 9 | Quick Actions Menu (Right-click) | ✅ DONE | 2026-03-10 | 2026-03-10 |
 | 10 | Status Indicators | ⬜ TODO | - | - |
 
 ### Details
@@ -107,9 +107,11 @@ useEffect(() => {
 - จัดกลุ่มตามโปรเจค
 - เช่น "Project A" → backend, frontend, db
 
-#### 9. Quick Actions Menu
-- Right-click context menu
-- Rename, Duplicate, Change Color, Close
+#### 9. Quick Actions Menu ✅
+- ✅ Done: Right-click context menu component
+- ✅ Menu items: Rename, Change Color, Move to Group, Duplicate, Close Terminal
+- ✅ Click outside or Escape to close
+- ✅ Submenu for "Move to Group" when multiple groups exist
 
 #### 10. Status Indicators
 - แสดงว่า terminal กำลังรันอะไร
@@ -159,13 +161,16 @@ useEffect(() => {
 | Phase | Total | Done | Partial | Progress |
 |-------|-------|------|---------|----------|
 | Phase 1 | 5 | 5 | 0 | **100%** ✅ |
-| Phase 2 | 5 | 1 | 0 | **20%** |
+| Phase 2 | 5 | 4 | 0 | **80%** |
 | Phase 3 | 5 | 0 | 0 | 0% |
-| **Total** | **15** | **6** | **0** | **40%** |
+| **Total** | **15** | **9** | **0** | **60%** |
 
 ---
 
 _Changelog:_
+- 2026-03-10 19:30: Phase 2 #9 Done - Quick Actions Menu (Right-click context menu)
+- 2026-03-10 19:00: Phase 2 #8 Done - Terminal Groups with expand/collapse
+- 2026-03-10 18:30: Phase 2 #7 Done - Drag & Drop Reorder with @dnd-kit
 - 2026-03-10 17:00: Phase 2 #6 Done - Modal replaces prompt() for new terminals
 - 2026-03-10 16:30: **PHASE 1 COMPLETE** - All 5 features done (Persistence, Shortcuts, Search, Colors, Confirm)
 - 2026-03-10 16:00: Phase 1 progress - Session Persistence, Shortcuts, Confirm Close implemented

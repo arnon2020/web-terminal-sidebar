@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './components/Modal';
 import SortableTerminalList from './components/SortableTerminalList';
+import ContextMenu from './components/ContextMenu';
 
 const TTYD_URL = 'http://localhost:7682';
 const STORAGE_KEY_TERMINALS = 'web-terminal-terminals';
@@ -31,6 +32,7 @@ function App() {
   const [newTerminalName, setNewTerminalName] = useState('');
   const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, terminalId: null });
 
   // ==================== SESSION PERSISTENCE ====================
   // Load terminals and groups from localStorage on mount
@@ -290,6 +292,56 @@ function App() {
     return terminals.filter(t => t.groupId === groupId);
   };
 
+  // ==================== CONTEXT MENU ====================
+  const openContextMenu = (e, terminalId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      isOpen: true,
+      x: e.clientX,
+      y: e.clientY,
+      terminalId
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({ ...contextMenu, isOpen: false });
+  };
+
+  const contextMenuDuplicate = () => {
+    if (!contextMenu.terminalId) return;
+    const terminal = terminals.find(t => t.id === contextMenu.terminalId);
+    if (!terminal) return;
+
+    const id = Date.now();
+    const colorIndex = terminals.length % TERMINAL_COLORS.length;
+    const newTerminal = {
+      id,
+      groupId: terminal.groupId,
+      name: `${terminal.name} (copy)`,
+      status: 'active',
+      color: TERMINAL_COLORS[colorIndex].name,
+      emoji: TERMINAL_COLORS[colorIndex].emoji
+    };
+    setTerminals([...terminals, newTerminal]);
+    setActiveTerminal(id);
+  };
+
+  const contextMenuRename = () => {
+    if (!contextMenu.terminalId) return;
+    const terminal = terminals.find(t => t.id === contextMenu.terminalId);
+    if (terminal) {
+      setEditingId(contextMenu.terminalId);
+      setEditingName(terminal.name);
+    }
+  };
+
+  const contextMenuClose = () => {
+    if (!contextMenu.terminalId) return;
+    // Create a fake event for removeTerminal
+    removeTerminal(contextMenu.terminalId, { stopPropagation: () => {} });
+  };
+
   // ==================== TERMINAL COLORS ====================
   const changeTerminalColor = (id, colorName) => {
     const color = TERMINAL_COLORS.find(c => c.name === colorName);
@@ -364,6 +416,7 @@ function App() {
             toggleGroupExpand={toggleGroupExpand}
             removeGroup={removeGroup}
             moveTerminalToGroup={moveTerminalToGroup}
+            onContextMenu={openContextMenu}
           />
         </div>
       </div>
@@ -472,6 +525,20 @@ function App() {
           </div>
         </div>
       </Modal>
+
+      {/* Context Menu */}
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        onClose={closeContextMenu}
+        onRename={contextMenuRename}
+        onChangeColor={() => setColorPickerId(contextMenu.terminalId)}
+        onMoveToGroup={(groupId) => moveTerminalToGroup(contextMenu.terminalId, groupId)}
+        onDuplicate={contextMenuDuplicate}
+        onCloseTerminal={contextMenuClose}
+        availableGroups={groups}
+      />
     </div>
   );
 }

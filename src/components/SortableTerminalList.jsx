@@ -41,7 +41,8 @@ function SortableTerminalItem({
   onCancelEdit,
   onChangeName,
   onKeyDown,
-  onChangeColor
+  onChangeColor,
+  onContextMenu
 }) {
   const {
     attributes,
@@ -62,6 +63,7 @@ function SortableTerminalItem({
       ref={setNodeRef}
       style={style}
       className={`terminal-item ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
+      onContextMenu={(e) => onContextMenu(e, terminal.id)}
     >
       {editingId === terminal.id ? (
         <input
@@ -142,7 +144,8 @@ function SortableTerminalList({
   setTerminals,
   toggleGroupExpand,
   removeGroup,
-  moveTerminalToGroup
+  moveTerminalToGroup,
+  onContextMenu
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor),
