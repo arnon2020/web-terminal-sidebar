@@ -92,6 +92,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      position: relative;
     }
     
     .terminal-item:hover {
@@ -150,6 +151,116 @@
     
     .terminal-item:hover .close-terminal {
       opacity: 1;
+    }
+
+    /* ==================== SEARCH ==================== */
+    .search-container {
+      padding: 10px;
+      border-bottom: 1px solid #0f3460;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      background: #0d0d1a;
+      border: 1px solid #2a2a4a;
+      border-radius: 4px;
+      padding: 8px 12px;
+      color: #eee;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: #e94560;
+    }
+
+    .search-input::placeholder {
+      color: #666;
+    }
+
+    .clear-search {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #2a2a4a;
+      border: none;
+      color: #999;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .clear-search:hover {
+      background: #e94560;
+      color: white;
+    }
+
+    /* ==================== TERMINAL EMOJI ==================== */
+    .terminal-emoji {
+      font-size: 16px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      margin-right: 4px;
+      transition: transform 0.2s;
+    }
+
+    .terminal-emoji:hover {
+      transform: scale(1.2);
+    }
+
+    /* ==================== COLOR PICKER ==================== */
+    .color-picker {
+      display: flex;
+      gap: 4px;
+      position: absolute;
+      left: 100%;
+      top: 0;
+      background: #1a1a2e;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+      padding: 4px;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .color-option {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f3460;
+      transition: all 0.2s;
+    }
+
+    .color-option:hover {
+      transform: scale(1.1);
+      background: #16213e;
+    }
+
+    .color-option.selected {
+      border: 2px solid #e94560;
+      background: #16213e;
+    }
+
+    /* ==================== NO RESULTS ==================== */
+    .no-results {
+      padding: 20px;
+      text-align: center;
+      color: #666;
+      font-size: 12px;
     }
     
     .main-content {

@@ -4,11 +4,23 @@ const TTYD_URL = 'http://localhost:7682';
 const STORAGE_KEY_TERMINALS = 'web-terminal-terminals';
 const STORAGE_KEY_ACTIVE = 'web-terminal-active';
 
+// Terminal color options
+const TERMINAL_COLORS = [
+  { emoji: '🟢', name: 'green', class: 'color-green' },
+  { emoji: '🟡', name: 'yellow', class: 'color-yellow' },
+  { emoji: '🔵', name: 'blue', class: 'color-blue' },
+  { emoji: '🟣', name: 'purple', class: 'color-purple' },
+  { emoji: '🟠', name: 'orange', class: 'color-orange' },
+  { emoji: '🔴', name: 'red', class: 'color-red' },
+];
+
 function App() {
   const [terminals, setTerminals] = useState([]);
   const [activeTerminal, setActiveTerminal] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [colorPickerId, setColorPickerId] = useState(null);
 
   // ==================== SESSION PERSISTENCE ====================
   // Load terminals from localStorage on mount
@@ -17,8 +29,14 @@ function App() {
     if (saved) {
       try {
         const parsedTerminals = JSON.parse(saved);
-        setTerminals(parsedTerminals);
-        
+        // Migrate old terminals without color
+        const migratedTerminals = parsedTerminals.map((t, i) => ({
+          ...t,
+          color: t.color || TERMINAL_COLORS[i % TERMINAL_COLORS.length].name,
+          emoji: t.emoji || TERMINAL_COLORS[i % TERMINAL_COLORS.length].emoji
+        }));
+        setTerminals(migratedTerminals);
+
         // Restore active terminal
         const savedActive = localStorage.getItem(STORAGE_KEY_ACTIVE);
         if (savedActive) {
@@ -112,10 +130,14 @@ function App() {
       return;
     }
     const id = Date.now();
+    // Auto-assign color based on existing terminals
+    const colorIndex = terminals.length % TERMINAL_COLORS.length;
     const terminal = {
       id,
       name: trimmedName,
-      status: 'active'
+      status: 'active',
+      color: TERMINAL_COLORS[colorIndex].name,
+      emoji: TERMINAL_COLORS[colorIndex].emoji
     };
     setTerminals([...terminals, terminal]);
     setActiveTerminal(id);
@@ -185,6 +207,22 @@ function App() {
     }
   };
 
+  // ==================== TERMINAL COLORS ====================
+  const changeTerminalColor = (id, colorName) => {
+    const color = TERMINAL_COLORS.find(c => c.name === colorName);
+    if (color) {
+      setTerminals(terminals.map(t =>
+        t.id === id ? { ...t, color: color.name, emoji: color.emoji } : t
+      ));
+    }
+    setColorPickerId(null);
+  };
+
+  // ==================== SEARCH ====================
+  const filteredTerminals = terminals.filter(terminal =>
+    terminal.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="app">
       <div className="sidebar">
@@ -201,8 +239,27 @@ function App() {
           </button>
         </div>
         <div className="sidebar-right">
+          {/* Search Input */}
+          <div className="search-container">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="🔍 Search terminals..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                className="clear-search"
+                onClick={() => setSearchQuery('')}
+                title="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
           <div className="terminal-list">
-            {terminals.map((terminal, index) => (
+            {filteredTerminals.map((terminal, index) => (
               <div
                 key={terminal.id}
                 className={`terminal-item ${activeTerminal === terminal.id ? 'active' : ''}`}
@@ -221,13 +278,32 @@ function App() {
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
-                  <span
-                    className="terminal-name"
-                    onDoubleClick={(e) => startEditing(terminal.id, e)}
-                    title="Double-click to rename"
-                  >
-                    {terminal.name}
-                  </span>
+                  <>
+                    <span className="terminal-emoji" onClick={(e) => { e.stopPropagation(); setColorPickerId(terminal.id); }}>
+                      {terminal.emoji || '⚪'}
+                    </span>
+                    <span
+                      className="terminal-name"
+                      onDoubleClick={(e) => startEditing(terminal.id, e)}
+                      title="Double-click to rename"
+                    >
+                      {terminal.name}
+                    </span>
+                  </>
+                )}
+                {colorPickerId === terminal.id && (
+                  <div className="color-picker" onClick={(e) => e.stopPropagation()}>
+                    {TERMINAL_COLORS.map(color => (
+                      <button
+                        key={color.name}
+                        className={`color-option ${color.class} ${terminal.color === color.name ? 'selected' : ''}`}
+                        onClick={() => changeTerminalColor(terminal.id, color.name)}
+                        title={color.name}
+                      >
+                        {color.emoji}
+                      </button>
+                    ))}
+                  </div>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span className="terminal-status" title="Active"></span>
@@ -241,6 +317,11 @@ function App() {
                 </div>
               </div>
             ))}
+            {filteredTerminals.length === 0 && searchQuery && (
+              <div className="no-results">
+                No terminals found matching "{searchQuery}"
+              </div>
+            )}
           </div>
         </div>
       </div>
