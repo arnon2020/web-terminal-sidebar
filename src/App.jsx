@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Modal from './components/Modal';
 
 const TTYD_URL = 'http://localhost:7682';
 const STORAGE_KEY_TERMINALS = 'web-terminal-terminals';
@@ -21,6 +22,8 @@ function App() {
   const [editingName, setEditingName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [colorPickerId, setColorPickerId] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newTerminalName, setNewTerminalName] = useState('');
 
   // ==================== SESSION PERSISTENCE ====================
   // Load terminals from localStorage on mount
@@ -119,12 +122,16 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [terminals, activeTerminal, editingId, editingName]);
+  }, [terminals, activeTerminal, editingId, editingName, isAddModalOpen]);
 
   const addTerminal = () => {
-    const name = prompt('Enter terminal name:', `Terminal ${terminals.length + 1}`);
-    if (name === null) return; // User cancelled
-    const trimmedName = name.trim();
+    // Open modal instead of prompt
+    setNewTerminalName(`Terminal ${terminals.length + 1}`);
+    setIsAddModalOpen(true);
+  };
+
+  const confirmAddTerminal = () => {
+    const trimmedName = newTerminalName.trim();
     if (!trimmedName) {
       alert('Terminal name cannot be empty');
       return;
@@ -141,6 +148,13 @@ function App() {
     };
     setTerminals([...terminals, terminal]);
     setActiveTerminal(id);
+    setIsAddModalOpen(false);
+    setNewTerminalName('');
+  };
+
+  const cancelAddTerminal = () => {
+    setIsAddModalOpen(false);
+    setNewTerminalName('');
   };
 
   const removeTerminal = (id, e) => {
@@ -348,6 +362,44 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Add Terminal Modal */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={cancelAddTerminal}
+        title="Add New Terminal"
+      >
+        <div className="add-terminal-form">
+          <input
+            type="text"
+            className="modal-input"
+            placeholder="Enter terminal name..."
+            value={newTerminalName}
+            onChange={(e) => setNewTerminalName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                confirmAddTerminal();
+              }
+            }}
+            autoFocus
+          />
+          <div className="modal-actions">
+            <button
+              className="modal-btn modal-btn-cancel"
+              onClick={cancelAddTerminal}
+            >
+              Cancel
+            </button>
+            <button
+              className="modal-btn modal-btn-primary"
+              onClick={confirmAddTerminal}
+            >
+              Add Terminal
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
