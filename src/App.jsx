@@ -33,6 +33,24 @@ function App() {
   const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, terminalId: null });
+  const [terminalStatuses, setTerminalStatuses] = useState({}); // Track connection status per terminal
+
+  // ==================== TERMINAL STATUS TRACKING ====================
+  // Update terminal connection status
+  const updateTerminalStatus = (terminalId, status) => {
+    setTerminalStatuses(prev => ({
+      ...prev,
+      [terminalId]: status
+    }));
+  };
+
+  const handleTerminalLoad = (terminalId) => {
+    updateTerminalStatus(terminalId, 'connected');
+  };
+
+  const handleTerminalError = (terminalId) => {
+    updateTerminalStatus(terminalId, 'disconnected');
+  };
 
   // ==================== SESSION PERSISTENCE ====================
   // Load terminals and groups from localStorage on mount
@@ -167,12 +185,14 @@ function App() {
       id,
       groupId: groups[0]?.id || 'default',
       name: trimmedName,
-      status: 'active',
+      status: 'loading',
       color: TERMINAL_COLORS[colorIndex].name,
       emoji: TERMINAL_COLORS[colorIndex].emoji
     };
     setTerminals([...terminals, terminal]);
     setActiveTerminal(id);
+    // Set initial status as loading
+    updateTerminalStatus(id, 'loading');
     setIsAddModalOpen(false);
     setNewTerminalName('');
   };
@@ -417,6 +437,7 @@ function App() {
             removeGroup={removeGroup}
             moveTerminalToGroup={moveTerminalToGroup}
             onContextMenu={openContextMenu}
+            terminalStatuses={terminalStatuses}
           />
         </div>
       </div>
@@ -429,6 +450,8 @@ function App() {
                 src={`${TTYD_URL}?id=${terminal.id}`}
                 className={`terminal-iframe ${activeTerminal === terminal.id ? 'active' : ''}`}
                 title={terminal.name}
+                onLoad={() => handleTerminalLoad(terminal.id)}
+                onError={() => handleTerminalError(terminal.id)}
               />
             ))}
           </div>

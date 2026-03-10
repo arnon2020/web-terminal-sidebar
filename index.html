@@ -244,6 +244,29 @@
       border-radius: 50%;
       background: #4ade80;
     }
+
+    /* Status indicator colors */
+    .terminal-status.status-loading {
+      background: #fbbf24;
+      animation: pulse 1.5s infinite;
+    }
+
+    .terminal-status.status-connected {
+      background: #4ade80;
+    }
+
+    .terminal-status.status-disconnected {
+      background: #6b7280;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
     
     .close-terminal {
       opacity: 0;

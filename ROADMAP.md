@@ -90,7 +90,7 @@ useEffect(() => {
 | 7 | Drag & Drop Reorder | ✅ DONE | 2026-03-10 | 2026-03-10 |
 | 8 | Terminal Groups/Tabs | ✅ DONE | 2026-03-10 | 2026-03-10 |
 | 9 | Quick Actions Menu (Right-click) | ✅ DONE | 2026-03-10 | 2026-03-10 |
-| 10 | Status Indicators | ⬜ TODO | - | - |
+| 10 | Status Indicators | ✅ DONE | 2026-03-10 | 2026-03-10 |
 
 ### Details
 
@@ -113,9 +113,12 @@ useEffect(() => {
 - ✅ Click outside or Escape to close
 - ✅ Submenu for "Move to Group" when multiple groups exist
 
-#### 10. Status Indicators
-- แสดงว่า terminal กำลังรันอะไร
-- อาจต้องมี backend support
+#### 10. Status Indicators ✅
+- ✅ Done: Connection status tracking per terminal
+- ✅ States: loading (yellow pulse), connected (green), disconnected (gray)
+- ✅ iframe load event handlers for status updates
+- ✅ Visual indicator with tooltip (status-dot per terminal)
+- ✅ CSS animations for loading state
 
 ---
 
@@ -161,13 +164,15 @@ useEffect(() => {
 | Phase | Total | Done | Partial | Progress |
 |-------|-------|------|---------|----------|
 | Phase 1 | 5 | 5 | 0 | **100%** ✅ |
-| Phase 2 | 5 | 4 | 0 | **80%** |
+| Phase 2 | 5 | 5 | 0 | **100%** ✅ |
 | Phase 3 | 5 | 0 | 0 | 0% |
-| **Total** | **15** | **9** | **0** | **60%** |
+| **Total** | **15** | **10** | **0** | **67%** |
 
 ---
 
 _Changelog:_
+- 2026-03-10 19:45: **PHASE 2 COMPLETE** - All 5 features done (Modal, Drag&Drop, Groups, Context Menu, Status)
+- 2026-03-10 19:30: Phase 2 #10 Done - Status Indicators (loading/connected/disconnected)
 - 2026-03-10 19:30: Phase 2 #9 Done - Quick Actions Menu (Right-click context menu)
 - 2026-03-10 19:00: Phase 2 #8 Done - Terminal Groups with expand/collapse
 - 2026-03-10 18:30: Phase 2 #7 Done - Drag & Drop Reorder with @dnd-kit

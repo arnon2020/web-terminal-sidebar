@@ -42,7 +42,8 @@ function SortableTerminalItem({
   onChangeName,
   onKeyDown,
   onChangeColor,
-  onContextMenu
+  onContextMenu,
+  connectionStatus
 }) {
   const {
     attributes,
@@ -111,7 +112,10 @@ function SortableTerminalItem({
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span className="terminal-status" title="Active"></span>
+        <span
+          className={`terminal-status status-${connectionStatus}`}
+          title={connectionStatus === 'connected' ? 'Connected' : connectionStatus === 'loading' ? 'Connecting...' : 'Disconnected'}
+        ></span>
         <button
           className="close-terminal"
           onClick={(e) => onRemove(terminal.id, e)}
@@ -145,7 +149,8 @@ function SortableTerminalList({
   toggleGroupExpand,
   removeGroup,
   moveTerminalToGroup,
-  onContextMenu
+  onContextMenu,
+  terminalStatuses
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -229,6 +234,8 @@ function SortableTerminalList({
                       onChangeName={setEditingName}
                       onKeyDown={(e, id) => handleEditKeyPress(e, id)}
                       onChangeColor={changeTerminalColor}
+                      onContextMenu={onContextMenu}
+                      connectionStatus={terminalStatuses[terminal.id] || 'loading'}
                     />
                   ))}
                 </SortableContext>
