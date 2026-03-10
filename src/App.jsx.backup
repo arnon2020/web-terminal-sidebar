@@ -1,0 +1,160 @@
+import React, { useState } from 'react';
+
+// TTYD web interface URL
+const TTYD_URL = 'http://localhost:7682';
+
+function App() {
+  const [terminals, setTerminals] = useState([]);
+  const [activeTerminal, setActiveTerminal] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editingName, setEditingName] = useState('');
+
+  // Add new terminal with custom name
+  const addTerminal = () => {
+    const name = prompt('Enter terminal name:', `Terminal ${terminals.length + 1}`);
+    if (name === null) return; // User cancelled
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      alert('Terminal name cannot be empty');
+      return;
+    }
+    const id = Date.now();
+    const terminal = {
+      id,
+      name: trimmedName,
+      status: 'active'
+    };
+    setTerminals([...terminals, terminal]);
+    setActiveTerminal(id);
+  };
+
+  // Remove terminal
+  const removeTerminal = (id, e) => {
+    e.stopPropagation();
+    setTerminals(terminals.filter(t => t.id !== id));
+    if (activeTerminal === id) {
+      setActiveTerminal(terminals.length > 1 ? terminals[0]?.id : null);
+    }
+  };
+
+  // Start editing terminal name
+  const startEditing = (id, e) => {
+    e.stopPropagation();
+    const terminal = terminals.find(t => t.id === id);
+    if (terminal) {
+      setEditingId(id);
+      setEditingName(terminal.name);
+    }
+  };
+
+  // Save edited name
+  const saveEdit = (id) => {
+    const trimmedName = editingName.trim();
+    if (!trimmedName) {
+      alert('Terminal name cannot be empty');
+      return;
+    }
+    setTerminals(terminals.map(t =>
+      t.id === id ? { ...t, name: trimmedName } : t
+    ));
+    setEditingId(null);
+    setEditingName('');
+  };
+
+  // Cancel editing
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingName('');
+  };
+
+  // Handle key press in edit input
+  const handleEditKeyPress = (e, id) => {
+    if (e.key === 'Enter') {
+      saveEdit(id);
+    } else if (e.key === 'Escape') {
+      cancelEdit();
+    }
+  };
+
+  return (
+    <div className="app">
+      <div className="sidebar">
+        <div className="sidebar-left">
+          <div className="sidebar-header">
+            🖥️
+          </div>
+          <button className="add-terminal" onClick={addTerminal}>
+            +
+          </button>
+        </div>
+        <div className="sidebar-right">
+          <div className="terminal-list">
+            {terminals.map(terminal => (
+              <div
+                key={terminal.id}
+                className={`terminal-item ${activeTerminal === terminal.id ? 'active' : ''}`}
+                onClick={() => setActiveTerminal(terminal.id)}
+              >
+                {editingId === terminal.id ? (
+                  <input
+                    type="text"
+                    className="terminal-name-input"
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onBlur={() => saveEdit(terminal.id)}
+                    onKeyDown={(e) => handleEditKeyPress(e, terminal.id)}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span
+                    className="terminal-name"
+                    onDoubleClick={(e) => startEditing(terminal.id, e)}
+                    title="Double-click to rename"
+                  >
+                    {terminal.name}
+                  </span>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="terminal-status" title="Active"></span>
+                  <button
+                    className="close-terminal"
+                    onClick={(e) => removeTerminal(terminal.id, e)}
+                    title="Close terminal"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="main-content">
+        {activeTerminal ? (
+          <div className="terminal-container">
+            {terminals.map(terminal => (
+              <iframe
+                key={terminal.id}
+                src={`${TTYD_URL}?id=${terminal.id}`}
+                className={`terminal-iframe ${activeTerminal === terminal.id ? 'active' : ''}`}
+                title={terminal.name}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <div>
+              <p>No terminal selected</p>
+              <p style={{ marginTop: '10px', fontSize: '12px' }}>
+                Click "+ Add Terminal" to get started
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;
