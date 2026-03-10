@@ -126,11 +126,21 @@ useEffect(() => {
 
 | # | Feature | Status | Started | Completed |
 |---|---------|--------|---------|-----------|
-| 11 | Split View (2 terminals) | ⬜ TODO | - | - |
+| 11 | Split View (2 terminals) | ✅ DONE | 2026-03-10 | 2026-03-10 |
 | 12 | Command Templates | ⬜ TODO | - | - |
 | 13 | Terminal Profiles | ⬜ TODO | - | - |
 | 14 | Auto-reconnect | ⬜ TODO | - | - |
 | 15 | Export/Import Sessions | ⬜ TODO | - | - |
+
+### Details
+
+#### 11. Split View (2 terminals) ✅
+- ✅ Done: Vertical and horizontal split view modes
+- ✅ Split view toggle buttons in sidebar (⋮ vertical, ≡ horizontal)
+- ✅ Resizable split pane with drag handle
+- ✅ Two terminals displayed simultaneously
+- ✅ Click toggle to turn off split view
+- ✅ CSS for split-container, split-pane, split-divider
 
 ---
 
@@ -165,12 +175,13 @@ useEffect(() => {
 |-------|-------|------|---------|----------|
 | Phase 1 | 5 | 5 | 0 | **100%** ✅ |
 | Phase 2 | 5 | 5 | 0 | **100%** ✅ |
-| Phase 3 | 5 | 0 | 0 | 0% |
-| **Total** | **15** | **10** | **0** | **67%** |
+| Phase 3 | 5 | 1 | 0 | **20%** |
+| **Total** | **15** | **11** | **0** | **73%** |
 
 ---
 
 _Changelog:_
+- 2026-03-10 19:45: Phase 3 #11 Done - Split View (2 terminals)
 - 2026-03-10 19:45: **PHASE 2 COMPLETE** - All 5 features done (Modal, Drag&Drop, Groups, Context Menu, Status)
 - 2026-03-10 19:30: Phase 2 #10 Done - Status Indicators (loading/connected/disconnected)
 - 2026-03-10 19:30: Phase 2 #9 Done - Quick Actions Menu (Right-click context menu)

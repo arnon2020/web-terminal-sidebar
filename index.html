@@ -98,7 +98,37 @@
       background: #1a4a6a;
       color: #eee;
     }
-    
+
+    .split-toggle {
+      width: 40px;
+      height: 40px;
+      background: #0f3460;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      font-size: 18px;
+      margin: 10px auto;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .split-toggle:hover {
+      background: #1a4a6a;
+      color: #eee;
+    }
+
+    .split-toggle.active {
+      background: #e94560;
+      color: white;
+    }
+
+    .split-toggle.active:hover {
+      background: #ff6b6b;
+    }
+
     .terminal-list {
       flex: 1;
       overflow-y: auto;
@@ -566,6 +596,87 @@
     }
 
     .terminal-iframe.active {
+      display: block;
+    }
+
+    /* ==================== SPLIT VIEW ==================== */
+    .split-container {
+      flex: 1;
+      display: flex;
+      background: #0d0d1a;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .split-container.split-vertical {
+      flex-direction: row;
+    }
+
+    .split-container.split-horizontal {
+      flex-direction: column;
+    }
+
+    .split-pane {
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .split-divider {
+      background: #1a1a2e;
+      border: 1px solid #0f3460;
+      position: relative;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .split-container.split-vertical .split-divider {
+      width: 4px;
+      cursor: col-resize;
+    }
+
+    .split-container.split-horizontal .split-divider {
+      height: 4px;
+      cursor: row-resize;
+    }
+
+    .split-handle {
+      position: absolute;
+      background: #e94560;
+      border-radius: 2px;
+    }
+
+    .split-container.split-vertical .split-handle {
+      width: 4px;
+      height: 40px;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .split-container.split-horizontal .split-handle {
+      width: 40px;
+      height: 4px;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .split-divider:hover .split-handle {
+      opacity: 1;
+    }
+
+    .split-container .terminal-iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       display: block;
     }
 

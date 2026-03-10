@@ -34,6 +34,9 @@ function App() {
   const [newGroupName, setNewGroupName] = useState('');
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, terminalId: null });
   const [terminalStatuses, setTerminalStatuses] = useState({}); // Track connection status per terminal
+  const [splitMode, setSplitMode] = useState(null); // null | 'vertical' | 'horizontal'
+  const [secondaryTerminal, setSecondaryTerminal] = useState(null); // Second terminal in split view
+  const [splitPosition, setSplitPosition] = useState(50); // Split percentage (0-100)
 
   // ==================== TERMINAL STATUS TRACKING ====================
   // Update terminal connection status
@@ -50,6 +53,61 @@ function App() {
 
   const handleTerminalError = (terminalId) => {
     updateTerminalStatus(terminalId, 'disconnected');
+  };
+
+  // ==================== SPLIT VIEW ====================
+  const toggleSplitView = (mode) => {
+    if (splitMode === mode) {
+      // Turn off split view
+      setSplitMode(null);
+      setSecondaryTerminal(null);
+    } else {
+      // Turn on split view
+      if (terminals.length < 2) {
+        alert('Need at least 2 terminals for split view');
+        return;
+      }
+      setSplitMode(mode);
+      // Set secondary terminal to first non-active terminal
+      const otherTerminal = terminals.find(t => t.id !== activeTerminal);
+      if (otherTerminal) {
+        setSecondaryTerminal(otherTerminal.id);
+      }
+    }
+  };
+
+  const handleSplitMouseDown = (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startPosition = splitPosition;
+
+    const handleMouseMove = (moveEvent) => {
+      if (splitMode === 'vertical') {
+        const container = document.querySelector('.split-container');
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          const newPosition = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+          setSplitPosition(Math.max(20, Math.min(80, newPosition)));
+        }
+      } else {
+        // horizontal
+        const container = document.querySelector('.split-container');
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          const newPosition = ((moveEvent.clientY - rect.top) / rect.height) * 100;
+          setSplitPosition(Math.max(20, Math.min(80, newPosition)));
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   // ==================== SESSION PERSISTENCE ====================
@@ -394,6 +452,20 @@ function App() {
           >
             📁
           </button>
+          <button
+            className={`split-toggle ${splitMode === 'vertical' ? 'active' : ''}`}
+            onClick={() => toggleSplitView('vertical')}
+            title="Split Vertical"
+          >
+            ⋮
+          </button>
+          <button
+            className={`split-toggle ${splitMode === 'horizontal' ? 'active' : ''}`}
+            onClick={() => toggleSplitView('horizontal')}
+            title="Split Horizontal"
+          >
+            ≡
+          </button>
         </div>
         <div className="sidebar-right">
           {/* Search Input */}
@@ -443,18 +515,54 @@ function App() {
       </div>
       <div className="main-content">
         {activeTerminal ? (
-          <div className="terminal-container">
-            {terminals.map(terminal => (
-              <iframe
-                key={terminal.id}
-                src={`${TTYD_URL}?id=${terminal.id}`}
-                className={`terminal-iframe ${activeTerminal === terminal.id ? 'active' : ''}`}
-                title={terminal.name}
-                onLoad={() => handleTerminalLoad(terminal.id)}
-                onError={() => handleTerminalError(terminal.id)}
-              />
-            ))}
-          </div>
+          splitMode ? (
+            <div className={`split-container split-${splitMode}`}>
+              <div className="split-pane" style={{ flex: splitPosition }}>
+                {terminals.map(terminal => (
+                  terminal.id === activeTerminal && (
+                    <iframe
+                      key={terminal.id}
+                      src={`${TTYD_URL}?id=${terminal.id}`}
+                      className="terminal-iframe active"
+                      title={terminal.name}
+                      onLoad={() => handleTerminalLoad(terminal.id)}
+                      onError={() => handleTerminalError(terminal.id)}
+                    />
+                  )
+                ))}
+              </div>
+              <div className="split-divider" onMouseDown={handleSplitMouseDown}>
+                <div className={`split-handle split-${splitMode}`}></div>
+              </div>
+              <div className="split-pane" style={{ flex: 100 - splitPosition }}>
+                {terminals.map(terminal => (
+                  terminal.id === secondaryTerminal && (
+                    <iframe
+                      key={terminal.id}
+                      src={`${TTYD_URL}?id=${terminal.id}`}
+                      className="terminal-iframe active"
+                      title={terminal.name}
+                      onLoad={() => handleTerminalLoad(terminal.id)}
+                      onError={() => handleTerminalError(terminal.id)}
+                    />
+                  )
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="terminal-container">
+              {terminals.map(terminal => (
+                <iframe
+                  key={terminal.id}
+                  src={`${TTYD_URL}?id=${terminal.id}`}
+                  className={`terminal-iframe ${activeTerminal === terminal.id ? 'active' : ''}`}
+                  title={terminal.name}
+                  onLoad={() => handleTerminalLoad(terminal.id)}
+                  onError={() => handleTerminalError(terminal.id)}
+                />
+              ))}
+            </div>
+          )
         ) : (
           <div className="empty-state">
             <div>
