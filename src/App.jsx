@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './components/Modal';
+import SortableTerminalList from './components/SortableTerminalList';
 
 const TTYD_URL = 'http://localhost:7682';
 const STORAGE_KEY_TERMINALS = 'web-terminal-terminals';
@@ -186,15 +187,6 @@ function App() {
     }
   };
 
-  const startEditing = (id, e) => {
-    e.stopPropagation();
-    const terminal = terminals.find(t => t.id === id);
-    if (terminal) {
-      setEditingId(id);
-      setEditingName(terminal.name);
-    }
-  };
-
   const saveEdit = (id) => {
     const trimmedName = editingName.trim();
     if (!trimmedName) {
@@ -232,11 +224,6 @@ function App() {
     setColorPickerId(null);
   };
 
-  // ==================== SEARCH ====================
-  const filteredTerminals = terminals.filter(terminal =>
-    terminal.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   return (
     <div className="app">
       <div className="sidebar">
@@ -272,71 +259,24 @@ function App() {
               </button>
             )}
           </div>
-          <div className="terminal-list">
-            {filteredTerminals.map((terminal, index) => (
-              <div
-                key={terminal.id}
-                className={`terminal-item ${activeTerminal === terminal.id ? 'active' : ''}`}
-                onClick={() => setActiveTerminal(terminal.id)}
-                title={`Switch to ${terminal.name} (Ctrl+${index + 1})`}
-              >
-                {editingId === terminal.id ? (
-                  <input
-                    type="text"
-                    className="terminal-name-input"
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onBlur={() => saveEdit(terminal.id)}
-                    onKeyDown={(e) => handleEditKeyPress(e, terminal.id)}
-                    autoFocus
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : (
-                  <>
-                    <span className="terminal-emoji" onClick={(e) => { e.stopPropagation(); setColorPickerId(terminal.id); }}>
-                      {terminal.emoji || '⚪'}
-                    </span>
-                    <span
-                      className="terminal-name"
-                      onDoubleClick={(e) => startEditing(terminal.id, e)}
-                      title="Double-click to rename"
-                    >
-                      {terminal.name}
-                    </span>
-                  </>
-                )}
-                {colorPickerId === terminal.id && (
-                  <div className="color-picker" onClick={(e) => e.stopPropagation()}>
-                    {TERMINAL_COLORS.map(color => (
-                      <button
-                        key={color.name}
-                        className={`color-option ${color.class} ${terminal.color === color.name ? 'selected' : ''}`}
-                        onClick={() => changeTerminalColor(terminal.id, color.name)}
-                        title={color.name}
-                      >
-                        {color.emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="terminal-status" title="Active"></span>
-                  <button
-                    className="close-terminal"
-                    onClick={(e) => removeTerminal(terminal.id, e)}
-                    title={`Close terminal (Ctrl+W)`}
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            ))}
-            {filteredTerminals.length === 0 && searchQuery && (
-              <div className="no-results">
-                No terminals found matching "{searchQuery}"
-              </div>
-            )}
-          </div>
+          <SortableTerminalList
+            terminals={terminals}
+            activeTerminal={activeTerminal}
+            editingId={editingId}
+            editingName={editingName}
+            colorPickerId={colorPickerId}
+            searchQuery={searchQuery}
+            setActiveTerminal={setActiveTerminal}
+            setEditingId={setEditingId}
+            setEditingName={setEditingName}
+            setColorPickerId={setColorPickerId}
+            saveEdit={saveEdit}
+            cancelEdit={cancelEdit}
+            handleEditKeyPress={handleEditKeyPress}
+            removeTerminal={removeTerminal}
+            changeTerminalColor={changeTerminalColor}
+            setTerminals={setTerminals}
+          />
         </div>
       </div>
       <div className="main-content">

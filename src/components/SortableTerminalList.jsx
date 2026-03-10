@@ -1,0 +1,209 @@
+import React from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// Import colors - will be passed from parent
+const TERMINAL_COLORS = [
+  { emoji: '🟢', name: 'green', class: 'color-green' },
+  { emoji: '🟡', name: 'yellow', class: 'color-yellow' },
+  { emoji: '🔵', name: 'blue', class: 'color-blue' },
+  { emoji: '🟣', name: 'purple', class: 'color-purple' },
+  { emoji: '🟠', name: 'orange', class: 'color-orange' },
+  { emoji: '🔴', name: 'red', class: 'color-red' },
+];
+
+function SortableTerminalItem({
+  id,
+  terminal,
+  isActive,
+  editingId,
+  editingName,
+  colorPickerId,
+  onActivate,
+  onDoubleClick,
+  onEmojiClick,
+  onRemove,
+  onSaveEdit,
+  onCancelEdit,
+  onChangeName,
+  onKeyDown,
+  onChangeColor
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`terminal-item ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
+    >
+      {editingId === terminal.id ? (
+        <input
+          type="text"
+          className="terminal-name-input"
+          value={editingName}
+          onChange={(e) => onChangeName(e.target.value)}
+          onBlur={() => onSaveEdit(terminal.id)}
+          onKeyDown={(e) => onKeyDown(e, terminal.id)}
+          autoFocus
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <>
+          <span className="terminal-drag-handle" {...attributes} {...listeners} title="Drag to reorder">
+            ⋮⋮
+          </span>
+          <span className="terminal-emoji" onClick={(e) => { e.stopPropagation(); onEmojiClick(terminal.id); }}>
+            {terminal.emoji || '⚪'}
+          </span>
+          <span
+            className="terminal-name"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onDoubleClick(terminal);
+            }}
+            title="Double-click to rename"
+          >
+            {terminal.name}
+          </span>
+        </>
+      )}
+      {colorPickerId === terminal.id && (
+        <div className="color-picker" onClick={(e) => e.stopPropagation()}>
+          {TERMINAL_COLORS.map(color => (
+            <button
+              key={color.name}
+              className={`color-option ${color.class} ${terminal.color === color.name ? 'selected' : ''}`}
+              onClick={() => onChangeColor(terminal.id, color.name)}
+              title={color.name}
+            >
+              {color.emoji}
+            </button>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span className="terminal-status" title="Active"></span>
+        <button
+          className="close-terminal"
+          onClick={(e) => onRemove(terminal.id, e)}
+          title={`Close terminal (Ctrl+W)`}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SortableTerminalList({
+  terminals,
+  activeTerminal,
+  editingId,
+  editingName,
+  colorPickerId,
+  searchQuery,
+  setActiveTerminal,
+  setEditingId,
+  setEditingName,
+  setColorPickerId,
+  saveEdit,
+  cancelEdit,
+  handleEditKeyPress,
+  removeTerminal,
+  changeTerminalColor,
+  setTerminals
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const filteredTerminals = terminals.filter(terminal =>
+    terminal.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = terminals.findIndex((t) => t.id === active.id);
+      const newIndex = terminals.findIndex((t) => t.id === over.id);
+
+      setTerminals(arrayMove(terminals, oldIndex, newIndex));
+    }
+  };
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext
+        items={terminals.map(t => t.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="terminal-list">
+          {filteredTerminals.map((terminal) => (
+            <SortableTerminalItem
+              key={terminal.id}
+              id={terminal.id}
+              terminal={terminal}
+              isActive={activeTerminal === terminal.id}
+              editingId={editingId}
+              editingName={editingName}
+              colorPickerId={colorPickerId}
+              onActivate={() => setActiveTerminal(terminal.id)}
+              onDoubleClick={(terminal) => {
+                setEditingId(terminal.id);
+                setEditingName(terminal.name);
+              }}
+              onEmojiClick={setColorPickerId}
+              onRemove={removeTerminal}
+              onSaveEdit={(id) => saveEdit(id)}
+              onChangeName={setEditingName}
+              onKeyDown={(e, id) => handleEditKeyPress(e, id)}
+              onChangeColor={changeTerminalColor}
+            />
+          ))}
+          {filteredTerminals.length === 0 && searchQuery && (
+            <div className="no-results">
+              No terminals found matching "{searchQuery}"
+            </div>
+          )}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+export default SortableTerminalList;
