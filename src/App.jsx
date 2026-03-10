@@ -5,6 +5,7 @@ import SortableTerminalList from './components/SortableTerminalList';
 const TTYD_URL = 'http://localhost:7682';
 const STORAGE_KEY_TERMINALS = 'web-terminal-terminals';
 const STORAGE_KEY_ACTIVE = 'web-terminal-active';
+const STORAGE_KEY_GROUPS = 'web-terminal-groups';
 
 // Terminal color options
 const TERMINAL_COLORS = [
@@ -17,6 +18,9 @@ const TERMINAL_COLORS = [
 ];
 
 function App() {
+  const [groups, setGroups] = useState([
+    { id: 'default', name: 'Default', expanded: true }
+  ]);
   const [terminals, setTerminals] = useState([]);
   const [activeTerminal, setActiveTerminal] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -25,17 +29,29 @@ function App() {
   const [colorPickerId, setColorPickerId] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newTerminalName, setNewTerminalName] = useState('');
+  const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
 
   // ==================== SESSION PERSISTENCE ====================
-  // Load terminals from localStorage on mount
+  // Load terminals and groups from localStorage on mount
   useEffect(() => {
+    const savedGroups = localStorage.getItem(STORAGE_KEY_GROUPS);
+    if (savedGroups) {
+      try {
+        setGroups(JSON.parse(savedGroups));
+      } catch (e) {
+        console.error('Failed to parse groups from localStorage:', e);
+      }
+    }
+
     const saved = localStorage.getItem(STORAGE_KEY_TERMINALS);
     if (saved) {
       try {
         const parsedTerminals = JSON.parse(saved);
-        // Migrate old terminals without color
+        // Migrate old terminals without color or groupId
         const migratedTerminals = parsedTerminals.map((t, i) => ({
           ...t,
+          groupId: t.groupId || groups[0]?.id || 'default',
           color: t.color || TERMINAL_COLORS[i % TERMINAL_COLORS.length].name,
           emoji: t.emoji || TERMINAL_COLORS[i % TERMINAL_COLORS.length].emoji
         }));
@@ -69,6 +85,11 @@ function App() {
       localStorage.removeItem(STORAGE_KEY_ACTIVE);
     }
   }, [terminals]);
+
+  // Save groups to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(groups));
+  }, [groups]);
 
   // Save active terminal to localStorage whenever it changes
   useEffect(() => {
@@ -142,6 +163,7 @@ function App() {
     const colorIndex = terminals.length % TERMINAL_COLORS.length;
     const terminal = {
       id,
+      groupId: groups[0]?.id || 'default',
       name: trimmedName,
       status: 'active',
       color: TERMINAL_COLORS[colorIndex].name,
@@ -213,6 +235,61 @@ function App() {
     }
   };
 
+  // ==================== GROUP MANAGEMENT ====================
+  const addGroup = () => {
+    setNewGroupName(`Group ${groups.length + 1}`);
+    setIsAddGroupModalOpen(true);
+  };
+
+  const confirmAddGroup = () => {
+    const trimmedName = newGroupName.trim();
+    if (!trimmedName) {
+      alert('Group name cannot be empty');
+      return;
+    }
+    const group = {
+      id: `group-${Date.now()}`,
+      name: trimmedName,
+      expanded: true
+    };
+    setGroups([...groups, group]);
+    setIsAddGroupModalOpen(false);
+    setNewGroupName('');
+  };
+
+  const removeGroup = (groupId) => {
+    if (groups.length <= 1) {
+      alert('Must have at least one group');
+      return;
+    }
+    const groupTerminals = terminals.filter(t => t.groupId === groupId);
+    if (groupTerminals.length > 0) {
+      const confirm = window.confirm(
+        `This group has ${groupTerminals.length} terminal(s). Remove anyway?`
+      );
+      if (!confirm) return;
+      // Remove terminals in this group
+      setTerminals(terminals.filter(t => t.groupId !== groupId));
+    }
+    setGroups(groups.filter(g => g.id !== groupId));
+  };
+
+  const toggleGroupExpand = (groupId) => {
+    setGroups(groups.map(g =>
+      g.id === groupId ? { ...g, expanded: !g.expanded } : g
+    ));
+  };
+
+  const moveTerminalToGroup = (terminalId, newGroupId) => {
+    setTerminals(terminals.map(t =>
+      t.id === terminalId ? { ...t, groupId: newGroupId } : t
+    ));
+  };
+
+  const getTerminalsByGroup = (groupId) => {
+    return terminals.filter(t => t.groupId === groupId);
+  };
+
   // ==================== TERMINAL COLORS ====================
   const changeTerminalColor = (id, colorName) => {
     const color = TERMINAL_COLORS.find(c => c.name === colorName);
@@ -231,12 +308,19 @@ function App() {
           <div className="sidebar-header">
             🖥️
           </div>
-          <button 
-            className="add-terminal" 
+          <button
+            className="add-terminal"
             onClick={addTerminal}
             title="Add Terminal (Ctrl+N or Ctrl+T)"
           >
             +
+          </button>
+          <button
+            className="add-group"
+            onClick={addGroup}
+            title="Add Group"
+          >
+            📁
           </button>
         </div>
         <div className="sidebar-right">
@@ -260,6 +344,7 @@ function App() {
             )}
           </div>
           <SortableTerminalList
+            groups={groups}
             terminals={terminals}
             activeTerminal={activeTerminal}
             editingId={editingId}
@@ -276,6 +361,9 @@ function App() {
             removeTerminal={removeTerminal}
             changeTerminalColor={changeTerminalColor}
             setTerminals={setTerminals}
+            toggleGroupExpand={toggleGroupExpand}
+            removeGroup={removeGroup}
+            moveTerminalToGroup={moveTerminalToGroup}
           />
         </div>
       </div>
@@ -336,6 +424,50 @@ function App() {
               onClick={confirmAddTerminal}
             >
               Add Terminal
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Add Group Modal */}
+      <Modal
+        isOpen={isAddGroupModalOpen}
+        onClose={() => {
+          setIsAddGroupModalOpen(false);
+          setNewGroupName('');
+        }}
+        title="Add New Group"
+      >
+        <div className="add-terminal-form">
+          <input
+            type="text"
+            className="modal-input"
+            placeholder="Enter group name..."
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                confirmAddGroup();
+              }
+            }}
+            autoFocus
+          />
+          <div className="modal-actions">
+            <button
+              className="modal-btn modal-btn-cancel"
+              onClick={() => {
+                setIsAddGroupModalOpen(false);
+                setNewGroupName('');
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="modal-btn modal-btn-primary"
+              onClick={confirmAddGroup}
+            >
+              Add Group
             </button>
           </div>
         </div>

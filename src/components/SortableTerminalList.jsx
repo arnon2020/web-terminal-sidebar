@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// Import colors - will be passed from parent
+// Import colors
 const TERMINAL_COLORS = [
   { emoji: '🟢', name: 'green', class: 'color-green' },
   { emoji: '🟡', name: 'yellow', class: 'color-yellow' },
@@ -123,6 +123,7 @@ function SortableTerminalItem({
 }
 
 function SortableTerminalList({
+  groups,
   terminals,
   activeTerminal,
   editingId,
@@ -138,7 +139,10 @@ function SortableTerminalList({
   handleEditKeyPress,
   removeTerminal,
   changeTerminalColor,
-  setTerminals
+  setTerminals,
+  toggleGroupExpand,
+  removeGroup,
+  moveTerminalToGroup
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -163,46 +167,79 @@ function SortableTerminalList({
   };
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext
-        items={terminals.map(t => t.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <div className="terminal-list">
-          {filteredTerminals.map((terminal) => (
-            <SortableTerminalItem
-              key={terminal.id}
-              id={terminal.id}
-              terminal={terminal}
-              isActive={activeTerminal === terminal.id}
-              editingId={editingId}
-              editingName={editingName}
-              colorPickerId={colorPickerId}
-              onActivate={() => setActiveTerminal(terminal.id)}
-              onDoubleClick={(terminal) => {
-                setEditingId(terminal.id);
-                setEditingName(terminal.name);
-              }}
-              onEmojiClick={setColorPickerId}
-              onRemove={removeTerminal}
-              onSaveEdit={(id) => saveEdit(id)}
-              onChangeName={setEditingName}
-              onKeyDown={(e, id) => handleEditKeyPress(e, id)}
-              onChangeColor={changeTerminalColor}
-            />
-          ))}
-          {filteredTerminals.length === 0 && searchQuery && (
-            <div className="no-results">
-              No terminals found matching "{searchQuery}"
+    <div className="terminal-list">
+      {groups.map((group) => {
+        const groupTerminals = filteredTerminals.filter(t => t.groupId === group.id);
+
+        if (searchQuery && groupTerminals.length === 0) {
+          return null;
+        }
+
+        return (
+          <div key={group.id} className="terminal-group">
+            <div className="group-header" onClick={() => toggleGroupExpand(group.id)}>
+              <span className="group-expand">
+                {group.expanded ? '▼' : '▶'}
+              </span>
+              <span className="group-name">{group.name}</span>
+              <span className="group-count">({groupTerminals.length})</span>
+              {groups.length > 1 && (
+                <button
+                  className="group-remove"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeGroup(group.id);
+                  }}
+                  title="Remove group"
+                >
+                  ×
+                </button>
+              )}
             </div>
-          )}
+            {group.expanded && (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={groupTerminals.map(t => t.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {groupTerminals.map((terminal) => (
+                    <SortableTerminalItem
+                      key={terminal.id}
+                      id={terminal.id}
+                      terminal={terminal}
+                      isActive={activeTerminal === terminal.id}
+                      editingId={editingId}
+                      editingName={editingName}
+                      colorPickerId={colorPickerId}
+                      onActivate={() => setActiveTerminal(terminal.id)}
+                      onDoubleClick={(terminal) => {
+                        setEditingId(terminal.id);
+                        setEditingName(terminal.name);
+                      }}
+                      onEmojiClick={setColorPickerId}
+                      onRemove={removeTerminal}
+                      onSaveEdit={(id) => saveEdit(id)}
+                      onChangeName={setEditingName}
+                      onKeyDown={(e, id) => handleEditKeyPress(e, id)}
+                      onChangeColor={changeTerminalColor}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            )}
+          </div>
+        );
+      })}
+      {filteredTerminals.length === 0 && searchQuery && (
+        <div className="no-results">
+          No terminals found matching "{searchQuery}"
         </div>
-      </SortableContext>
-    </DndContext>
+      )}
+    </div>
   );
 }
 
