@@ -255,7 +255,7 @@ function App() {
       if (iframe) {
         // Force reload the iframe with sanitized ID
         updateTerminalStatus(terminalId, 'loading');
-        iframe.src = `${TTYD_URL}?id=${safeId}&reconnect=${Date.now()}`;
+        iframe.src = `${TTYD_URL}?arg=${safeId}&reconnect=${Date.now()}`;
       }
     } catch (error) {
       console.error('Failed to reconnect terminal:', error);
@@ -1031,7 +1031,7 @@ function App() {
                       return (
                         <iframe
                           key={terminal.id}
-                          src={`${TTYD_URL}?id=${safeId}`}
+                          src={`${TTYD_URL}?arg=${safeId}`}
                           className="terminal-iframe active"
                           title={terminal.name}
                           data-terminal-id={safeId}
@@ -1063,7 +1063,7 @@ function App() {
                       return (
                         <iframe
                           key={terminal.id}
-                          src={`${TTYD_URL}?id=${safeId}`}
+                          src={`${TTYD_URL}?arg=${safeId}`}
                           className="terminal-iframe active"
                           title={terminal.name}
                           data-terminal-id={safeId}
