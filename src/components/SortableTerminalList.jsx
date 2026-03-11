@@ -87,6 +87,10 @@ function SortableTerminalItem({
           </span>
           <span
             className="terminal-name"
+            onClick={(e) => {
+              e.stopPropagation();
+              onActivate(terminal.id);
+            }}
             onDoubleClick={(e) => {
               e.stopPropagation();
               onDoubleClick(terminal);
