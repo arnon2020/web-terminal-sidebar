@@ -1,29 +1,16 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from './components/Modal';
-import TerminalWrapper from './components/TerminalWrapper';
 import SortableTerminalList from './components/SortableTerminalList';
 import ContextMenu from './components/ContextMenu';
 import TemplateModal from './components/TemplateModal';
 import ProfileModal from './components/ProfileModal';
 
-// ==================== CONSTANTS ====================
 const TTYD_URL = 'http://localhost:7682';
-
-// Storage keys
 const STORAGE_KEY_TERMINALS = 'web-terminal-terminals';
 const STORAGE_KEY_ACTIVE = 'web-terminal-active';
 const STORAGE_KEY_GROUPS = 'web-terminal-groups';
 const STORAGE_KEY_TEMPLATES = 'web-terminal-templates';
 const STORAGE_KEY_PROFILES = 'web-terminal-profiles';
-const STORAGE_KEY_ALL = 'web-terminal-all'; // Combined storage for efficiency
-
-// Timing constants (milliseconds)
-const RECONNECT_DELAY_MS = 3000;
-const STORAGE_DEBOUNCE_MS = 300;
-
-// Validation constants
-const MAX_TERMINAL_NAME_LENGTH = 100;
-const MAX_GROUP_NAME_LENGTH = 50;
 
 // Terminal color options
 const TERMINAL_COLORS = [
@@ -35,99 +22,10 @@ const TERMINAL_COLORS = [
   { emoji: '🔴', name: 'red', class: 'color-red' },
 ];
 
-// ==================== STORAGE UTILITIES ====================
-// Debounced storage write to batch multiple writes
-const useDebouncedStorage = (delay = STORAGE_DEBOUNCE_MS) => {
-  const timeoutRef = useRef(null);
-  const pendingDataRef = useRef(null);
-
-  const scheduleWrite = useCallback((data) => {
-    // Store the latest data
-    pendingDataRef.current = data;
-
-    // Clear existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    // Schedule new write
-    timeoutRef.current = setTimeout(() => {
-      if (pendingDataRef.current) {
-        try {
-          localStorage.setItem(STORAGE_KEY_ALL, JSON.stringify(pendingDataRef.current));
-        } catch (error) {
-          console.error('Failed to write to localStorage:', error);
-        }
-        pendingDataRef.current = null;
-      }
-    }, delay);
-  }, [delay]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      // Write any pending data
-      if (pendingDataRef.current) {
-        try {
-          localStorage.setItem(STORAGE_KEY_ALL, JSON.stringify(pendingDataRef.current));
-        } catch (error) {
-          console.error('Failed to write pending data:', error);
-        }
-      }
-    };
-  }, []);
-
-  return scheduleWrite;
-};
-
-// Load all data at once (more efficient)
-const loadAllData = () => {
-  try {
-    // Try new combined storage first
-    const allData = localStorage.getItem(STORAGE_KEY_ALL);
-    if (allData) {
-      const parsed = JSON.parse(allData);
-      return {
-        terminals: parsed.terminals || [],
-        groups: parsed.groups || [{ id: 'default', name: 'Default', expanded: true }],
-        activeTerminal: parsed.activeTerminal || null,
-        templates: parsed.templates || [],
-        profiles: parsed.profiles || []
-      };
-    }
-
-    // Fallback to legacy separate keys
-    const terminals = localStorage.getItem(STORAGE_KEY_TERMINALS);
-    const groups = localStorage.getItem(STORAGE_KEY_GROUPS);
-    const active = localStorage.getItem(STORAGE_KEY_ACTIVE);
-    const templates = localStorage.getItem(STORAGE_KEY_TEMPLATES);
-    const profiles = localStorage.getItem(STORAGE_KEY_PROFILES);
-
-    return {
-      terminals: terminals ? JSON.parse(terminals) : [],
-      groups: groups ? JSON.parse(groups) : [{ id: 'default', name: 'Default', expanded: true }],
-      activeTerminal: active ? parseInt(active, 10) : null,
-      templates: templates ? JSON.parse(templates) : [],
-      profiles: profiles ? JSON.parse(profiles) : []
-    };
-  } catch (error) {
-    console.error('Failed to load data from localStorage:', error);
-    return {
-      terminals: [],
-      groups: [{ id: 'default', name: 'Default', expanded: true }],
-      activeTerminal: null,
-      templates: [],
-      profiles: []
-    };
-  }
-};
-
 function App() {
-  // State
-  const [groups, setGroups] = useState([]);
+  const [groups, setGroups] = useState([
+    { id: 'default', name: 'Default', expanded: true }
+  ]);
   const [terminals, setTerminals] = useState([]);
   const [activeTerminal, setActiveTerminal] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -139,89 +37,20 @@ function App() {
   const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, terminalId: null });
-  const [terminalStatuses, setTerminalStatuses] = useState({});
-  const [splitMode, setSplitMode] = useState(null);
-  const [secondaryTerminal, setSecondaryTerminal] = useState(null);
-  const [splitPosition, setSplitPosition] = useState(50);
-  const [commandTemplates, setCommandTemplates] = useState([]);
-  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState(null);
-  const [showTemplates, setShowTemplates] = useState(true);
-  const [terminalProfiles, setTerminalProfiles] = useState([]);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [editingProfile, setEditingProfile] = useState(null);
-  const [showProfiles, setShowProfiles] = useState(true);
-  const [iframeRefs, setIframeRefs] = useState({});
-  const [autoReconnect, setAutoReconnect] = useState(true);
-
-  // ==================== EFFICIENT STORAGE ====================
-  // Single debounced storage write instead of 6 separate effects
-  const scheduleStorageWrite = useDebouncedStorage(STORAGE_DEBOUNCE_MS);
-
-  // Write all data to storage in a single batched operation
-  const saveToStorage = useCallback(() => {
-    scheduleStorageWrite({
-      version: '1.0',
-      terminals,
-      groups,
-      activeTerminal,
-      templates: commandTemplates,
-      profiles: terminalProfiles,
-      savedAt: Date.now()
-    });
-  }, [terminals, groups, activeTerminal, commandTemplates, terminalProfiles, scheduleStorageWrite]);
-
-  // Save whenever any tracked state changes
-  useEffect(() => {
-    saveToStorage();
-  }, [saveToStorage]);
-
-  // ==================== SECURITY UTILITIES ====================
-  // Sanitize ID for safe URL construction
-  const sanitizeId = (id) => {
-    // Ensure ID is a number and convert to string safely
-    const numId = typeof id === 'number' ? id : parseInt(String(id), 10);
-    if (isNaN(numId) || numId <= 0) {
-      throw new Error('Invalid terminal ID');
-    }
-    return String(numId);
-  };
-
-  // Safely parse JSON with validation
-  const safeJsonParse = (json, fallback = null, validator = null) => {
-    try {
-      const data = JSON.parse(json);
-      // Run custom validator if provided
-      if (validator && !validator(data)) {
-        console.warn('JSON validation failed, using fallback');
-        return fallback;
-      }
-      return data;
-    } catch (e) {
-      console.error('Failed to parse JSON:', e);
-      return fallback;
-    }
-  };
-
-  // Validate terminal data structure
-  const isValidTerminal = (item) => {
-    return item &&
-      typeof item === 'object' &&
-      typeof item.id === 'number' &&
-      item.id > 0 &&
-      typeof item.name === 'string' &&
-      item.name.length > 0 &&
-      item.name.length <= MAX_TERMINAL_NAME_LENGTH;
-  };
-
-  // Validate session data structure
-  const isValidSessionData = (data) => {
-    return data &&
-      typeof data === 'object' &&
-      data.version &&
-      typeof data.version === 'string' &&
-      Array.isArray(data.terminals);
-  };
+  const [terminalStatuses, setTerminalStatuses] = useState({}); // Track connection status per terminal
+  const [splitMode, setSplitMode] = useState(null); // null | 'vertical' | 'horizontal'
+  const [secondaryTerminal, setSecondaryTerminal] = useState(null); // Second terminal in split view
+  const [splitPosition, setSplitPosition] = useState(50); // Split percentage (0-100)
+  const [commandTemplates, setCommandTemplates] = useState([]); // Command templates
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false); // Template modal
+  const [editingTemplate, setEditingTemplate] = useState(null); // Template being edited
+  const [showTemplates, setShowTemplates] = useState(true); // Show templates list
+  const [terminalProfiles, setTerminalProfiles] = useState([]); // Terminal profiles
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Profile modal
+  const [editingProfile, setEditingProfile] = useState(null); // Profile being edited
+  const [showProfiles, setShowProfiles] = useState(true); // Show profiles list
+  const [iframeRefs, setIframeRefs] = useState({}); // Track iframe refs for reconnect
+  const [autoReconnect, setAutoReconnect] = useState(true); // Auto-reconnect enabled
 
   // ==================== TERMINAL STATUS TRACKING ====================
   // Update terminal connection status
@@ -243,23 +72,17 @@ function App() {
     if (autoReconnect) {
       setTimeout(() => {
         attemptReconnect(terminalId);
-      }, RECONNECT_DELAY_MS);
+      }, 3000); // Wait 3 seconds before reconnect attempt
     }
   };
 
   // Attempt to reconnect a disconnected terminal
   const attemptReconnect = (terminalId) => {
-    try {
-      const safeId = sanitizeId(terminalId);
-      const iframe = document.querySelector(`iframe[data-terminal-id="${safeId}"]`);
-      if (iframe) {
-        // Force reload the iframe with sanitized ID
-        updateTerminalStatus(terminalId, 'loading');
-        iframe.src = `${TTYD_URL}?id=${safeId}&reconnect=${Date.now()}`;
-      }
-    } catch (error) {
-      console.error('Failed to reconnect terminal:', error);
-      updateTerminalStatus(terminalId, 'disconnected');
+    const iframe = document.querySelector(`iframe[data-terminal-id="${terminalId}"]`);
+    if (iframe) {
+      // Force reload the iframe
+      updateTerminalStatus(terminalId, 'loading');
+      iframe.src = `${TTYD_URL}?id=${terminalId}&reconnect=${Date.now()}`;
     }
   };
 
@@ -455,44 +278,38 @@ function App() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      // Use safe JSON parsing with validation
-      const sessionData = safeJsonParse(
-        e.target.result,
-        null,
-        isValidSessionData
-      );
+      try {
+        const sessionData = JSON.parse(e.target.result);
 
-      if (!sessionData) {
-        alert('Invalid session file format');
-        return;
-      }
+        // Validate session data structure
+        if (!sessionData.version || !Array.isArray(sessionData.terminals)) {
+          alert('Invalid session file format');
+          return;
+        }
 
-      // Validate and filter terminals
-      const validTerminals = sessionData.terminals ? sessionData.terminals.filter(isValidTerminal) : [];
-      if (validTerminals.length !== sessionData.terminals?.length) {
-        console.warn(`Filtered out ${sessionData.terminals.length - validTerminals.length} invalid terminals`);
-      }
+        // Import data
+        if (sessionData.groups && Array.isArray(sessionData.groups)) {
+          setGroups(sessionData.groups);
+        }
+        if (sessionData.terminals && Array.isArray(sessionData.terminals)) {
+          setTerminals(sessionData.terminals);
+        }
+        if (sessionData.commandTemplates && Array.isArray(sessionData.commandTemplates)) {
+          setCommandTemplates(sessionData.commandTemplates);
+        }
+        if (sessionData.terminalProfiles && Array.isArray(sessionData.terminalProfiles)) {
+          setTerminalProfiles(sessionData.terminalProfiles);
+        }
 
-      // Import data with validation
-      if (sessionData.groups && Array.isArray(sessionData.groups)) {
-        setGroups(sessionData.groups);
-      }
-      if (validTerminals.length > 0) {
-        setTerminals(validTerminals);
-      }
-      if (sessionData.commandTemplates && Array.isArray(sessionData.commandTemplates)) {
-        setCommandTemplates(sessionData.commandTemplates);
-      }
-      if (sessionData.terminalProfiles && Array.isArray(sessionData.terminalProfiles)) {
-        setTerminalProfiles(sessionData.terminalProfiles);
-      }
+        // Reset active terminal
+        if (sessionData.terminals.length > 0) {
+          setActiveTerminal(sessionData.terminals[0].id);
+        }
 
-      // Reset active terminal
-      if (validTerminals.length > 0) {
-        setActiveTerminal(validTerminals[0].id);
+        alert(`Session imported successfully!\n\n${sessionData.terminals.length} terminals\n${sessionData.groups?.length || 0} groups\n${sessionData.commandTemplates?.length || 0} templates\n${sessionData.terminalProfiles?.length || 0} profiles`);
+      } catch (err) {
+        alert('Failed to import session: ' + err.message);
       }
-
-      alert(`Session imported successfully!\n\n${validTerminals.length} terminals\n${sessionData.groups?.length || 0} groups\n${sessionData.commandTemplates?.length || 0} templates\n${sessionData.terminalProfiles?.length || 0} profiles`);
     };
     reader.readAsText(file);
 
@@ -500,32 +317,102 @@ function App() {
     event.target.value = '';
   };
 
-  // ==================== LOAD DATA ON MOUNT ====================
-  // Load all data at once on mount (efficient single read)
+  // Load terminals and groups from localStorage on mount
   useEffect(() => {
-    const data = loadAllData();
-
-    // Migrate and set terminals with color assignment
-    const migratedTerminals = data.terminals.filter(isValidTerminal).map((t, i) => ({
-      ...t,
-      groupId: t.groupId || data.groups[0]?.id || 'default',
-      color: t.color || TERMINAL_COLORS[i % TERMINAL_COLORS.length].name,
-      emoji: t.emoji || TERMINAL_COLORS[i % TERMINAL_COLORS.length].emoji
-    }));
-
-    setGroups(data.groups);
-    setTerminals(migratedTerminals);
-
-    // Set active terminal
-    if (data.activeTerminal && migratedTerminals.some(t => t.id === data.activeTerminal)) {
-      setActiveTerminal(data.activeTerminal);
-    } else if (migratedTerminals.length > 0) {
-      setActiveTerminal(migratedTerminals[0].id);
+    const savedGroups = localStorage.getItem(STORAGE_KEY_GROUPS);
+    if (savedGroups) {
+      try {
+        setGroups(JSON.parse(savedGroups));
+      } catch (e) {
+        console.error('Failed to parse groups from localStorage:', e);
+      }
     }
 
-    setCommandTemplates(data.templates);
-    setTerminalProfiles(data.profiles);
-  }, []); // Empty deps = run once on mount
+    const saved = localStorage.getItem(STORAGE_KEY_TERMINALS);
+    if (saved) {
+      try {
+        const parsedTerminals = JSON.parse(saved);
+        // Migrate old terminals without color or groupId
+        const migratedTerminals = parsedTerminals.map((t, i) => ({
+          ...t,
+          groupId: t.groupId || groups[0]?.id || 'default',
+          color: t.color || TERMINAL_COLORS[i % TERMINAL_COLORS.length].name,
+          emoji: t.emoji || TERMINAL_COLORS[i % TERMINAL_COLORS.length].emoji
+        }));
+        setTerminals(migratedTerminals);
+
+        // Restore active terminal
+        const savedActive = localStorage.getItem(STORAGE_KEY_ACTIVE);
+        if (savedActive) {
+          const activeId = parseInt(savedActive, 10);
+          // Only set active if the terminal still exists
+          if (parsedTerminals.some(t => t.id === activeId)) {
+            setActiveTerminal(activeId);
+          } else if (parsedTerminals.length > 0) {
+            // If saved terminal doesn't exist, use first one
+            setActiveTerminal(parsedTerminals[0].id);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse localStorage:', e);
+      }
+    }
+
+    // Load templates from localStorage
+    const savedTemplates = localStorage.getItem(STORAGE_KEY_TEMPLATES);
+    if (savedTemplates) {
+      try {
+        setCommandTemplates(JSON.parse(savedTemplates));
+      } catch (e) {
+        console.error('Failed to parse templates from localStorage:', e);
+      }
+    }
+
+    // Load profiles from localStorage
+    const savedProfiles = localStorage.getItem(STORAGE_KEY_PROFILES);
+    if (savedProfiles) {
+      try {
+        setTerminalProfiles(JSON.parse(savedProfiles));
+      } catch (e) {
+        console.error('Failed to parse profiles from localStorage:', e);
+      }
+    }
+  }, []);
+
+  // Save terminals to localStorage whenever they change
+  useEffect(() => {
+    if (terminals.length > 0) {
+      localStorage.setItem(STORAGE_KEY_TERMINALS, JSON.stringify(terminals));
+    } else {
+      // Clear storage if no terminals
+      localStorage.removeItem(STORAGE_KEY_TERMINALS);
+      localStorage.removeItem(STORAGE_KEY_ACTIVE);
+    }
+  }, [terminals]);
+
+  // Save groups to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(groups));
+  }, [groups]);
+
+  // Save active terminal to localStorage whenever it changes
+  useEffect(() => {
+    if (activeTerminal !== null) {
+      localStorage.setItem(STORAGE_KEY_ACTIVE, activeTerminal.toString());
+    } else {
+      localStorage.removeItem(STORAGE_KEY_ACTIVE);
+    }
+  }, [activeTerminal]);
+
+  // Save templates to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(commandTemplates));
+  }, [commandTemplates]);
+
+  // Save profiles to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(terminalProfiles));
+  }, [terminalProfiles]);
 
   // ==================== KEYBOARD SHORTCUTS ====================
   useEffect(() => {
@@ -710,13 +597,8 @@ function App() {
   };
 
   const moveTerminalToGroup = (terminalId, newGroupId) => {
-    // Move terminal to new group
     setTerminals(terminals.map(t =>
       t.id === terminalId ? { ...t, groupId: newGroupId } : t
-    ));
-    // Auto-expand the target group so user can see the moved terminal
-    setGroups(groups.map(g =>
-      g.id === newGroupId ? { ...g, expanded: true } : g
     ));
   };
 
@@ -789,14 +671,13 @@ function App() {
     <div className="app">
       <div className="sidebar">
         <div className="sidebar-left">
-          <div className="sidebar-header" role="banner" aria-label="Web Terminal Sidebar">
+          <div className="sidebar-header">
             🖥️
           </div>
           <button
             className="add-terminal"
             onClick={addTerminal}
             title="Add Terminal (Ctrl+N or Ctrl+T)"
-            aria-label="Add new terminal"
           >
             +
           </button>
@@ -804,7 +685,6 @@ function App() {
             className="add-group"
             onClick={addGroup}
             title="Add Group"
-            aria-label="Add new group"
           >
             📁
           </button>
@@ -812,8 +692,6 @@ function App() {
             className={`split-toggle ${splitMode === 'vertical' ? 'active' : ''}`}
             onClick={() => toggleSplitView('vertical')}
             title="Split Vertical"
-            aria-label="Split view vertically"
-            aria-pressed={splitMode === 'vertical'}
           >
             ⋮
           </button>
@@ -821,8 +699,6 @@ function App() {
             className={`split-toggle ${splitMode === 'horizontal' ? 'active' : ''}`}
             onClick={() => toggleSplitView('horizontal')}
             title="Split Horizontal"
-            aria-label="Split view horizontally"
-            aria-pressed={splitMode === 'horizontal'}
           >
             ≡
           </button>
@@ -830,7 +706,6 @@ function App() {
             className="template-button"
             onClick={openTemplateModal}
             title="Command Templates"
-            aria-label="Open command templates"
           >
             📋
           </button>
@@ -838,7 +713,6 @@ function App() {
             className="profile-button"
             onClick={openProfileModal}
             title="Terminal Profiles"
-            aria-label="Open terminal profiles"
           >
             ⚙️
           </button>
@@ -846,7 +720,6 @@ function App() {
             className="export-button"
             onClick={exportSession}
             title="Export Session"
-            aria-label="Export session data"
           >
             📤
           </button>
@@ -854,7 +727,6 @@ function App() {
             className="import-button"
             onClick={() => document.getElementById('import-file-input').click()}
             title="Import Session"
-            aria-label="Import session data"
           >
             📥
           </button>
@@ -868,22 +740,19 @@ function App() {
         </div>
         <div className="sidebar-right">
           {/* Search Input */}
-          <div className="search-container" role="search">
+          <div className="search-container">
             <input
               type="text"
               className="search-input"
               placeholder="🔍 Search terminals..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Search terminals"
-              aria-controls="terminal-list"
             />
             {searchQuery && (
               <button
                 className="clear-search"
                 onClick={() => setSearchQuery('')}
                 title="Clear search"
-                aria-label="Clear search"
               >
                 ×
               </button>
@@ -993,7 +862,6 @@ function App() {
           )}
 
           <SortableTerminalList
-            id="terminal-list"
             groups={groups}
             terminals={terminals}
             activeTerminal={activeTerminal}
@@ -1019,87 +887,59 @@ function App() {
           />
         </div>
       </div>
-      <div className="main-content" role="main" aria-label="Terminal content area">
+      <div className="main-content">
         {activeTerminal ? (
           splitMode ? (
-            <div className={`split-container split-${splitMode}`} role="region" aria-label={`Split ${splitMode} view`}>
-              <div className="split-pane" style={{ flex: splitPosition }} role="region" aria-label="Primary terminal">
-                {terminals.map(terminal => {
-                  if (terminal.id === activeTerminal) {
-                    try {
-                      const safeId = sanitizeId(terminal.id);
-                      return (
-                        <iframe
-                          key={terminal.id}
-                          src={`${TTYD_URL}?id=${safeId}`}
-                          className="terminal-iframe active"
-                          title={terminal.name}
-                          data-terminal-id={safeId}
-                          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
-                          referrerPolicy="no-referrer"
-                          allowFullScreen
-                          allow="clipboard-read; clipboard-write; keyboard-input"
-                          aria-label={`Terminal: ${terminal.name}`}
-                          onLoad={() => handleTerminalLoad(terminal.id)}
-                          onError={() => handleTerminalError(terminal.id)}
-                        />
-                      );
-                    } catch (error) {
-                      console.error('Invalid terminal ID:', error);
-                      return null;
-                    }
-                  }
-                  return null;
-                })}
+            <div className={`split-container split-${splitMode}`}>
+              <div className="split-pane" style={{ flex: splitPosition }}>
+                {terminals.map(terminal => (
+                  terminal.id === activeTerminal && (
+                    <iframe
+                      key={terminal.id}
+                      src={`${TTYD_URL}?id=${terminal.id}`}
+                      className="terminal-iframe active"
+                      title={terminal.name}
+                      onLoad={() => handleTerminalLoad(terminal.id)}
+                      onError={() => handleTerminalError(terminal.id)}
+                    />
+                  )
+                ))}
               </div>
-              <div className="split-divider" onMouseDown={handleSplitMouseDown} role="separator" aria-orientation={splitMode === 'vertical' ? 'vertical' : 'horizontal'} aria-label="Split view divider">
+              <div className="split-divider" onMouseDown={handleSplitMouseDown}>
                 <div className={`split-handle split-${splitMode}`}></div>
               </div>
-              <div className="split-pane" style={{ flex: 100 - splitPosition }} role="region" aria-label="Secondary terminal">
-                {terminals.map(terminal => {
-                  if (terminal.id === secondaryTerminal) {
-                    try {
-                      const safeId = sanitizeId(terminal.id);
-                      return (
-                        <iframe
-                          key={terminal.id}
-                          src={`${TTYD_URL}?id=${safeId}`}
-                          className="terminal-iframe active"
-                          title={terminal.name}
-                          data-terminal-id={safeId}
-                          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
-                          referrerPolicy="no-referrer"
-                          allowFullScreen
-                          allow="clipboard-read; clipboard-write; keyboard-input"
-                          aria-label={`Terminal: ${terminal.name}`}
-                          onLoad={() => handleTerminalLoad(terminal.id)}
-                          onError={() => handleTerminalError(terminal.id)}
-                        />
-                      );
-                    } catch (error) {
-                      console.error('Invalid terminal ID:', error);
-                      return null;
-                    }
-                  }
-                  return null;
-                })}
+              <div className="split-pane" style={{ flex: 100 - splitPosition }}>
+                {terminals.map(terminal => (
+                  terminal.id === secondaryTerminal && (
+                    <iframe
+                      key={terminal.id}
+                      src={`${TTYD_URL}?id=${terminal.id}`}
+                      className="terminal-iframe active"
+                      title={terminal.name}
+                      onLoad={() => handleTerminalLoad(terminal.id)}
+                      onError={() => handleTerminalError(terminal.id)}
+                    />
+                  )
+                ))}
               </div>
             </div>
           ) : (
-            <div className="terminal-container" role="region" aria-label="Active terminal">
+            <div className="terminal-container">
               {terminals.map(terminal => (
-                <TerminalWrapper
+                <iframe
                   key={terminal.id}
-                  terminal={terminal}
-                  isActive={activeTerminal === terminal.id}
-                  onLoad={handleTerminalLoad}
-                  onError={handleTerminalError}
+                  src={`${TTYD_URL}?id=${terminal.id}`}
+                  className={`terminal-iframe ${activeTerminal === terminal.id ? 'active' : ''}`}
+                  title={terminal.name}
+                  data-terminal-id={terminal.id}
+                  onLoad={() => handleTerminalLoad(terminal.id)}
+                  onError={() => handleTerminalError(terminal.id)}
                 />
               ))}
             </div>
           )
         ) : (
-          <div className="empty-state" role="status" aria-live="polite">
+          <div className="empty-state">
             <div>
               <p>No terminal selected</p>
               <p style={{ marginTop: '10px', fontSize: '12px' }}>
