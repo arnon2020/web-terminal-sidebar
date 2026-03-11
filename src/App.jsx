@@ -784,13 +784,14 @@ function App() {
     <div className="app">
       <div className="sidebar">
         <div className="sidebar-left">
-          <div className="sidebar-header">
+          <div className="sidebar-header" role="banner" aria-label="Web Terminal Sidebar">
             🖥️
           </div>
           <button
             className="add-terminal"
             onClick={addTerminal}
             title="Add Terminal (Ctrl+N or Ctrl+T)"
+            aria-label="Add new terminal"
           >
             +
           </button>
@@ -798,6 +799,7 @@ function App() {
             className="add-group"
             onClick={addGroup}
             title="Add Group"
+            aria-label="Add new group"
           >
             📁
           </button>
@@ -805,6 +807,8 @@ function App() {
             className={`split-toggle ${splitMode === 'vertical' ? 'active' : ''}`}
             onClick={() => toggleSplitView('vertical')}
             title="Split Vertical"
+            aria-label="Split view vertically"
+            aria-pressed={splitMode === 'vertical'}
           >
             ⋮
           </button>
@@ -812,6 +816,8 @@ function App() {
             className={`split-toggle ${splitMode === 'horizontal' ? 'active' : ''}`}
             onClick={() => toggleSplitView('horizontal')}
             title="Split Horizontal"
+            aria-label="Split view horizontally"
+            aria-pressed={splitMode === 'horizontal'}
           >
             ≡
           </button>
@@ -819,6 +825,7 @@ function App() {
             className="template-button"
             onClick={openTemplateModal}
             title="Command Templates"
+            aria-label="Open command templates"
           >
             📋
           </button>
@@ -826,6 +833,7 @@ function App() {
             className="profile-button"
             onClick={openProfileModal}
             title="Terminal Profiles"
+            aria-label="Open terminal profiles"
           >
             ⚙️
           </button>
@@ -833,6 +841,7 @@ function App() {
             className="export-button"
             onClick={exportSession}
             title="Export Session"
+            aria-label="Export session data"
           >
             📤
           </button>
@@ -840,6 +849,7 @@ function App() {
             className="import-button"
             onClick={() => document.getElementById('import-file-input').click()}
             title="Import Session"
+            aria-label="Import session data"
           >
             📥
           </button>
@@ -853,19 +863,22 @@ function App() {
         </div>
         <div className="sidebar-right">
           {/* Search Input */}
-          <div className="search-container">
+          <div className="search-container" role="search">
             <input
               type="text"
               className="search-input"
               placeholder="🔍 Search terminals..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search terminals"
+              aria-controls="terminal-list"
             />
             {searchQuery && (
               <button
                 className="clear-search"
                 onClick={() => setSearchQuery('')}
                 title="Clear search"
+                aria-label="Clear search"
               >
                 ×
               </button>
@@ -975,6 +988,7 @@ function App() {
           )}
 
           <SortableTerminalList
+            id="terminal-list"
             groups={groups}
             terminals={terminals}
             activeTerminal={activeTerminal}
@@ -1000,11 +1014,11 @@ function App() {
           />
         </div>
       </div>
-      <div className="main-content">
+      <div className="main-content" role="main" aria-label="Terminal content area">
         {activeTerminal ? (
           splitMode ? (
-            <div className={`split-container split-${splitMode}`}>
-              <div className="split-pane" style={{ flex: splitPosition }}>
+            <div className={`split-container split-${splitMode}`} role="region" aria-label={`Split ${splitMode} view`}>
+              <div className="split-pane" style={{ flex: splitPosition }} role="region" aria-label="Primary terminal">
                 {terminals.map(terminal => {
                   if (terminal.id === activeTerminal) {
                     try {
@@ -1020,6 +1034,7 @@ function App() {
                           referrerPolicy="no-referrer"
                           allowFullScreen
                           allow="clipboard-read; clipboard-write; keyboard-input"
+                          aria-label={`Terminal: ${terminal.name}`}
                           onLoad={() => handleTerminalLoad(terminal.id)}
                           onError={() => handleTerminalError(terminal.id)}
                         />
@@ -1032,10 +1047,10 @@ function App() {
                   return null;
                 })}
               </div>
-              <div className="split-divider" onMouseDown={handleSplitMouseDown}>
+              <div className="split-divider" onMouseDown={handleSplitMouseDown} role="separator" aria-orientation={splitMode === 'vertical' ? 'vertical' : 'horizontal'} aria-label="Split view divider">
                 <div className={`split-handle split-${splitMode}`}></div>
               </div>
-              <div className="split-pane" style={{ flex: 100 - splitPosition }}>
+              <div className="split-pane" style={{ flex: 100 - splitPosition }} role="region" aria-label="Secondary terminal">
                 {terminals.map(terminal => {
                   if (terminal.id === secondaryTerminal) {
                     try {
@@ -1051,6 +1066,7 @@ function App() {
                           referrerPolicy="no-referrer"
                           allowFullScreen
                           allow="clipboard-read; clipboard-write; keyboard-input"
+                          aria-label={`Terminal: ${terminal.name}`}
                           onLoad={() => handleTerminalLoad(terminal.id)}
                           onError={() => handleTerminalError(terminal.id)}
                         />
@@ -1065,7 +1081,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="terminal-container">
+            <div className="terminal-container" role="region" aria-label="Active terminal">
               {terminals.map(terminal => (
                 <TerminalWrapper
                   key={terminal.id}
@@ -1078,7 +1094,7 @@ function App() {
             </div>
           )
         ) : (
-          <div className="empty-state">
+          <div className="empty-state" role="status" aria-live="polite">
             <div>
               <p>No terminal selected</p>
               <p style={{ marginTop: '10px', fontSize: '12px' }}>
