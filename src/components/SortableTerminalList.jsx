@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -26,7 +26,8 @@ const TERMINAL_COLORS = [
   { emoji: '🔴', name: 'red', class: 'color-red' },
 ];
 
-function SortableTerminalItem({
+// Memoized component to prevent unnecessary re-renders
+const SortableTerminalItem = memo(function SortableTerminalItem({
   id,
   terminal,
   isActive,
@@ -92,10 +93,6 @@ function SortableTerminalItem({
           </span>
           <span
             className="terminal-name"
-            onClick={(e) => {
-              e.stopPropagation();
-              onActivate(terminal.id);
-            }}
             onDoubleClick={(e) => {
               e.stopPropagation();
               onDoubleClick(terminal);
@@ -135,7 +132,22 @@ function SortableTerminalItem({
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison for better performance
+  // Only re-render if these specific props change
+  return (
+    prevProps.terminal.id === nextProps.terminal.id &&
+    prevProps.terminal.name === nextProps.terminal.name &&
+    prevProps.terminal.color === nextProps.terminal.color &&
+    prevProps.terminal.emoji === nextProps.terminal.emoji &&
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.editingId === nextProps.editingId &&
+    prevProps.colorPickerId === nextProps.colorPickerId &&
+    prevProps.connectionStatus === nextProps.connectionStatus
+  );
+});
+
+SortableTerminalItem.displayName = 'SortableTerminalItem';
 
 function SortableTerminalList({
   groups,

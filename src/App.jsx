@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from './components/Modal';
 import TerminalWrapper from './components/TerminalWrapper';
 import SortableTerminalList from './components/SortableTerminalList';
@@ -6,12 +6,24 @@ import ContextMenu from './components/ContextMenu';
 import TemplateModal from './components/TemplateModal';
 import ProfileModal from './components/ProfileModal';
 
+// ==================== CONSTANTS ====================
 const TTYD_URL = 'http://localhost:7682';
+
+// Storage keys
 const STORAGE_KEY_TERMINALS = 'web-terminal-terminals';
 const STORAGE_KEY_ACTIVE = 'web-terminal-active';
 const STORAGE_KEY_GROUPS = 'web-terminal-groups';
 const STORAGE_KEY_TEMPLATES = 'web-terminal-templates';
 const STORAGE_KEY_PROFILES = 'web-terminal-profiles';
+const STORAGE_KEY_ALL = 'web-terminal-all'; // Combined storage for efficiency
+
+// Timing constants (milliseconds)
+const RECONNECT_DELAY_MS = 3000;
+const STORAGE_DEBOUNCE_MS = 300;
+
+// Validation constants
+const MAX_TERMINAL_NAME_LENGTH = 100;
+const MAX_GROUP_NAME_LENGTH = 50;
 
 // Terminal color options
 const TERMINAL_COLORS = [
@@ -23,10 +35,99 @@ const TERMINAL_COLORS = [
   { emoji: '🔴', name: 'red', class: 'color-red' },
 ];
 
+// ==================== STORAGE UTILITIES ====================
+// Debounced storage write to batch multiple writes
+const useDebouncedStorage = (delay = STORAGE_DEBOUNCE_MS) => {
+  const timeoutRef = useRef(null);
+  const pendingDataRef = useRef(null);
+
+  const scheduleWrite = useCallback((data) => {
+    // Store the latest data
+    pendingDataRef.current = data;
+
+    // Clear existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Schedule new write
+    timeoutRef.current = setTimeout(() => {
+      if (pendingDataRef.current) {
+        try {
+          localStorage.setItem(STORAGE_KEY_ALL, JSON.stringify(pendingDataRef.current));
+        } catch (error) {
+          console.error('Failed to write to localStorage:', error);
+        }
+        pendingDataRef.current = null;
+      }
+    }, delay);
+  }, [delay]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      // Write any pending data
+      if (pendingDataRef.current) {
+        try {
+          localStorage.setItem(STORAGE_KEY_ALL, JSON.stringify(pendingDataRef.current));
+        } catch (error) {
+          console.error('Failed to write pending data:', error);
+        }
+      }
+    };
+  }, []);
+
+  return scheduleWrite;
+};
+
+// Load all data at once (more efficient)
+const loadAllData = () => {
+  try {
+    // Try new combined storage first
+    const allData = localStorage.getItem(STORAGE_KEY_ALL);
+    if (allData) {
+      const parsed = JSON.parse(allData);
+      return {
+        terminals: parsed.terminals || [],
+        groups: parsed.groups || [{ id: 'default', name: 'Default', expanded: true }],
+        activeTerminal: parsed.activeTerminal || null,
+        templates: parsed.templates || [],
+        profiles: parsed.profiles || []
+      };
+    }
+
+    // Fallback to legacy separate keys
+    const terminals = localStorage.getItem(STORAGE_KEY_TERMINALS);
+    const groups = localStorage.getItem(STORAGE_KEY_GROUPS);
+    const active = localStorage.getItem(STORAGE_KEY_ACTIVE);
+    const templates = localStorage.getItem(STORAGE_KEY_TEMPLATES);
+    const profiles = localStorage.getItem(STORAGE_KEY_PROFILES);
+
+    return {
+      terminals: terminals ? JSON.parse(terminals) : [],
+      groups: groups ? JSON.parse(groups) : [{ id: 'default', name: 'Default', expanded: true }],
+      activeTerminal: active ? parseInt(active, 10) : null,
+      templates: templates ? JSON.parse(templates) : [],
+      profiles: profiles ? JSON.parse(profiles) : []
+    };
+  } catch (error) {
+    console.error('Failed to load data from localStorage:', error);
+    return {
+      terminals: [],
+      groups: [{ id: 'default', name: 'Default', expanded: true }],
+      activeTerminal: null,
+      templates: [],
+      profiles: []
+    };
+  }
+};
+
 function App() {
-  const [groups, setGroups] = useState([
-    { id: 'default', name: 'Default', expanded: true }
-  ]);
+  // State
+  const [groups, setGroups] = useState([]);
   const [terminals, setTerminals] = useState([]);
   const [activeTerminal, setActiveTerminal] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -38,20 +139,42 @@ function App() {
   const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, terminalId: null });
-  const [terminalStatuses, setTerminalStatuses] = useState({}); // Track connection status per terminal
-  const [splitMode, setSplitMode] = useState(null); // null | 'vertical' | 'horizontal'
-  const [secondaryTerminal, setSecondaryTerminal] = useState(null); // Second terminal in split view
-  const [splitPosition, setSplitPosition] = useState(50); // Split percentage (0-100)
-  const [commandTemplates, setCommandTemplates] = useState([]); // Command templates
-  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false); // Template modal
-  const [editingTemplate, setEditingTemplate] = useState(null); // Template being edited
-  const [showTemplates, setShowTemplates] = useState(true); // Show templates list
-  const [terminalProfiles, setTerminalProfiles] = useState([]); // Terminal profiles
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Profile modal
-  const [editingProfile, setEditingProfile] = useState(null); // Profile being edited
-  const [showProfiles, setShowProfiles] = useState(true); // Show profiles list
-  const [iframeRefs, setIframeRefs] = useState({}); // Track iframe refs for reconnect
-  const [autoReconnect, setAutoReconnect] = useState(true); // Auto-reconnect enabled
+  const [terminalStatuses, setTerminalStatuses] = useState({});
+  const [splitMode, setSplitMode] = useState(null);
+  const [secondaryTerminal, setSecondaryTerminal] = useState(null);
+  const [splitPosition, setSplitPosition] = useState(50);
+  const [commandTemplates, setCommandTemplates] = useState([]);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [showTemplates, setShowTemplates] = useState(true);
+  const [terminalProfiles, setTerminalProfiles] = useState([]);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(null);
+  const [showProfiles, setShowProfiles] = useState(true);
+  const [iframeRefs, setIframeRefs] = useState({});
+  const [autoReconnect, setAutoReconnect] = useState(true);
+
+  // ==================== EFFICIENT STORAGE ====================
+  // Single debounced storage write instead of 6 separate effects
+  const scheduleStorageWrite = useDebouncedStorage(STORAGE_DEBOUNCE_MS);
+
+  // Write all data to storage in a single batched operation
+  const saveToStorage = useCallback(() => {
+    scheduleStorageWrite({
+      version: '1.0',
+      terminals,
+      groups,
+      activeTerminal,
+      templates: commandTemplates,
+      profiles: terminalProfiles,
+      savedAt: Date.now()
+    });
+  }, [terminals, groups, activeTerminal, commandTemplates, terminalProfiles, scheduleStorageWrite]);
+
+  // Save whenever any tracked state changes
+  useEffect(() => {
+    saveToStorage();
+  }, [saveToStorage]);
 
   // ==================== SECURITY UTILITIES ====================
   // Sanitize ID for safe URL construction
@@ -88,7 +211,7 @@ function App() {
       item.id > 0 &&
       typeof item.name === 'string' &&
       item.name.length > 0 &&
-      item.name.length <= 100;
+      item.name.length <= MAX_TERMINAL_NAME_LENGTH;
   };
 
   // Validate session data structure
@@ -120,7 +243,7 @@ function App() {
     if (autoReconnect) {
       setTimeout(() => {
         attemptReconnect(terminalId);
-      }, 3000); // Wait 3 seconds before reconnect attempt
+      }, RECONNECT_DELAY_MS);
     }
   };
 
@@ -377,92 +500,32 @@ function App() {
     event.target.value = '';
   };
 
-  // Load terminals and groups from localStorage on mount
+  // ==================== LOAD DATA ON MOUNT ====================
+  // Load all data at once on mount (efficient single read)
   useEffect(() => {
-    const savedGroups = localStorage.getItem(STORAGE_KEY_GROUPS);
-    if (savedGroups) {
-      const parsedGroups = safeJsonParse(savedGroups, null, (data) => Array.isArray(data));
-      if (parsedGroups) {
-        setGroups(parsedGroups);
-      }
+    const data = loadAllData();
+
+    // Migrate and set terminals with color assignment
+    const migratedTerminals = data.terminals.filter(isValidTerminal).map((t, i) => ({
+      ...t,
+      groupId: t.groupId || data.groups[0]?.id || 'default',
+      color: t.color || TERMINAL_COLORS[i % TERMINAL_COLORS.length].name,
+      emoji: t.emoji || TERMINAL_COLORS[i % TERMINAL_COLORS.length].emoji
+    }));
+
+    setGroups(data.groups);
+    setTerminals(migratedTerminals);
+
+    // Set active terminal
+    if (data.activeTerminal && migratedTerminals.some(t => t.id === data.activeTerminal)) {
+      setActiveTerminal(data.activeTerminal);
+    } else if (migratedTerminals.length > 0) {
+      setActiveTerminal(migratedTerminals[0].id);
     }
 
-    const saved = localStorage.getItem(STORAGE_KEY_TERMINALS);
-    if (saved) {
-      const parsedTerminals = safeJsonParse(saved, [], (data) => Array.isArray(data));
-      // Filter valid terminals and migrate old ones without color or groupId
-      const validTerminals = parsedTerminals.filter(isValidTerminal);
-      const migratedTerminals = validTerminals.map((t, i) => ({
-        ...t,
-        groupId: t.groupId || groups[0]?.id || 'default',
-        color: t.color || TERMINAL_COLORS[i % TERMINAL_COLORS.length].name,
-        emoji: t.emoji || TERMINAL_COLORS[i % TERMINAL_COLORS.length].emoji
-      }));
-      setTerminals(migratedTerminals);
-
-        // Restore active terminal
-        const savedActive = localStorage.getItem(STORAGE_KEY_ACTIVE);
-        if (savedActive) {
-          const activeId = parseInt(savedActive, 10);
-          // Only set active if the terminal still exists
-          if (validTerminals.some(t => t.id === activeId)) {
-            setActiveTerminal(activeId);
-          } else if (validTerminals.length > 0) {
-            // If saved terminal doesn't exist, use first one
-            setActiveTerminal(validTerminals[0].id);
-          }
-        }
-    }
-
-    // Load templates from localStorage with validation
-    const savedTemplates = localStorage.getItem(STORAGE_KEY_TEMPLATES);
-    if (savedTemplates) {
-      const templates = safeJsonParse(savedTemplates, [], (data) => Array.isArray(data));
-      setCommandTemplates(templates);
-    }
-
-    // Load profiles from localStorage with validation
-    const savedProfiles = localStorage.getItem(STORAGE_KEY_PROFILES);
-    if (savedProfiles) {
-      const profiles = safeJsonParse(savedProfiles, [], (data) => Array.isArray(data));
-      setTerminalProfiles(profiles);
-    }
-  }, []);
-
-  // Save terminals to localStorage whenever they change
-  useEffect(() => {
-    if (terminals.length > 0) {
-      localStorage.setItem(STORAGE_KEY_TERMINALS, JSON.stringify(terminals));
-    } else {
-      // Clear storage if no terminals
-      localStorage.removeItem(STORAGE_KEY_TERMINALS);
-      localStorage.removeItem(STORAGE_KEY_ACTIVE);
-    }
-  }, [terminals]);
-
-  // Save groups to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(groups));
-  }, [groups]);
-
-  // Save active terminal to localStorage whenever it changes
-  useEffect(() => {
-    if (activeTerminal !== null) {
-      localStorage.setItem(STORAGE_KEY_ACTIVE, activeTerminal.toString());
-    } else {
-      localStorage.removeItem(STORAGE_KEY_ACTIVE);
-    }
-  }, [activeTerminal]);
-
-  // Save templates to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(commandTemplates));
-  }, [commandTemplates]);
-
-  // Save profiles to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(terminalProfiles));
-  }, [terminalProfiles]);
+    setCommandTemplates(data.templates);
+    setTerminalProfiles(data.profiles);
+  }, []); // Empty deps = run once on mount
 
   // ==================== KEYBOARD SHORTCUTS ====================
   useEffect(() => {
