@@ -129,7 +129,7 @@ useEffect(() => {
 | 11 | Split View (2 terminals) | ✅ DONE | 2026-03-10 | 2026-03-10 |
 | 12 | Command Templates | ✅ DONE | 2026-03-11 | 2026-03-11 |
 | 13 | Terminal Profiles | ✅ DONE | 2026-03-11 | 2026-03-11 |
-| 14 | Auto-reconnect | ⬜ TODO | - | - |
+| 14 | Auto-reconnect | ✅ DONE | 2026-03-11 | 2026-03-11 |
 | 15 | Export/Import Sessions | ⬜ TODO | - | - |
 
 ### Details
@@ -160,10 +160,15 @@ useEffect(() => {
 - ✅ Profile stores shell type (bash, zsh, fish, sh, tmux, screen)
 - ✅ Environment variables parsing (KEY=value format)
 - ✅ Profile button (⚙️) in sidebar
-- ✅ Resizable split pane with drag handle
-- ✅ Two terminals displayed simultaneously
-- ✅ Click toggle to turn off split view
-- ✅ CSS for split-container, split-pane, split-divider
+
+#### 14. Auto-reconnect ✅
+- ✅ Done: Auto-reconnect on terminal error/disconnect
+- ✅ 3-second delay before reconnect attempt
+- ✅ Status tracking (loading, connected, disconnected)
+- ✅ Visual indicator with pulse animation for loading/reconnecting
+- ✅ Force iframe reload on reconnect
+- ✅ Auto-reconnect enabled by default
+- ✅ data-terminal-id attribute for iframe targeting
 
 ---
 
@@ -198,12 +203,13 @@ useEffect(() => {
 |-------|-------|------|---------|----------|
 | Phase 1 | 5 | 5 | 0 | **100%** ✅ |
 | Phase 2 | 5 | 5 | 0 | **100%** ✅ |
-| Phase 3 | 5 | 3 | 0 | **60%** |
-| **Total** | **15** | **13** | **0** | **87%** |
+| Phase 3 | 5 | 4 | 0 | **80%** |
+| **Total** | **15** | **14** | **0** | **93%** |
 
 ---
 
 _Changelog:_
+- 2026-03-11 01:30: Phase 3 #14 Done - Auto-reconnect (auto-refresh on disconnect)
 - 2026-03-11 01:00: Phase 3 #13 Done - Terminal Profiles (shell, workingDir, envVars)
 - 2026-03-11 00:30: Phase 3 #12 Done - Command Templates (modal, localStorage, CRUD)
 - 2026-03-10 19:45: Phase 3 #11 Done - Split View (2 terminals)

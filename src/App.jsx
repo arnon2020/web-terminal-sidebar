@@ -49,6 +49,8 @@ function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Profile modal
   const [editingProfile, setEditingProfile] = useState(null); // Profile being edited
   const [showProfiles, setShowProfiles] = useState(true); // Show profiles list
+  const [iframeRefs, setIframeRefs] = useState({}); // Track iframe refs for reconnect
+  const [autoReconnect, setAutoReconnect] = useState(true); // Auto-reconnect enabled
 
   // ==================== TERMINAL STATUS TRACKING ====================
   // Update terminal connection status
@@ -65,6 +67,23 @@ function App() {
 
   const handleTerminalError = (terminalId) => {
     updateTerminalStatus(terminalId, 'disconnected');
+
+    // Auto-reconnect if enabled
+    if (autoReconnect) {
+      setTimeout(() => {
+        attemptReconnect(terminalId);
+      }, 3000); // Wait 3 seconds before reconnect attempt
+    }
+  };
+
+  // Attempt to reconnect a disconnected terminal
+  const attemptReconnect = (terminalId) => {
+    const iframe = document.querySelector(`iframe[data-terminal-id="${terminalId}"]`);
+    if (iframe) {
+      // Force reload the iframe
+      updateTerminalStatus(terminalId, 'loading');
+      iframe.src = `${TTYD_URL}?id=${terminalId}&reconnect=${Date.now()}`;
+    }
   };
 
   // ==================== SPLIT VIEW ====================
@@ -814,6 +833,7 @@ function App() {
                   src={`${TTYD_URL}?id=${terminal.id}`}
                   className={`terminal-iframe ${activeTerminal === terminal.id ? 'active' : ''}`}
                   title={terminal.name}
+                  data-terminal-id={terminal.id}
                   onLoad={() => handleTerminalLoad(terminal.id)}
                   onError={() => handleTerminalError(terminal.id)}
                 />
