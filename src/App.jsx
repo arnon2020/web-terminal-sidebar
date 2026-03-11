@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import Modal from './components/Modal';
 import SortableTerminalList from './components/SortableTerminalList';
 import ContextMenu from './components/ContextMenu';
+import TemplateModal from './components/TemplateModal';
 
 const TTYD_URL = 'http://localhost:7682';
 const STORAGE_KEY_TERMINALS = 'web-terminal-terminals';
 const STORAGE_KEY_ACTIVE = 'web-terminal-active';
 const STORAGE_KEY_GROUPS = 'web-terminal-groups';
+const STORAGE_KEY_TEMPLATES = 'web-terminal-templates';
 
 // Terminal color options
 const TERMINAL_COLORS = [
@@ -37,6 +39,10 @@ function App() {
   const [splitMode, setSplitMode] = useState(null); // null | 'vertical' | 'horizontal'
   const [secondaryTerminal, setSecondaryTerminal] = useState(null); // Second terminal in split view
   const [splitPosition, setSplitPosition] = useState(50); // Split percentage (0-100)
+  const [commandTemplates, setCommandTemplates] = useState([]); // Command templates
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false); // Template modal
+  const [editingTemplate, setEditingTemplate] = useState(null); // Template being edited
+  const [showTemplates, setShowTemplates] = useState(true); // Show templates list
 
   // ==================== TERMINAL STATUS TRACKING ====================
   // Update terminal connection status
@@ -110,7 +116,53 @@ function App() {
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  // ==================== SESSION PERSISTENCE ====================
+  // ==================== COMMAND TEMPLATES ====================
+  const addTemplate = (template) => {
+    const newTemplate = {
+      id: Date.now(),
+      ...template,
+      createdAt: new Date().toISOString()
+    };
+    setCommandTemplates([...commandTemplates, newTemplate]);
+  };
+
+  const updateTemplate = (id, updatedTemplate) => {
+    setCommandTemplates(commandTemplates.map(t =>
+      t.id === id ? { ...t, ...updatedTemplate } : t
+    ));
+  };
+
+  const deleteTemplate = (id) => {
+    setCommandTemplates(commandTemplates.filter(t => t.id !== id));
+  };
+
+  const executeTemplate = (templateId) => {
+    if (!activeTerminal) {
+      alert('Please select a terminal first');
+      return;
+    }
+    const template = commandTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    // Find the active terminal iframe and send the command
+    const iframe = document.querySelector(`.terminal-iframe.active iframe`);
+    if (iframe && iframe.contentWindow) {
+      // Send command via postMessage (ttyd will need to handle this)
+      // For now, we'll use a simpler approach - the user can copy-paste
+      // In a real implementation, we'd need a backend that accepts commands
+      alert(`Template: ${template.name}\nCommand: ${template.command}\n\nNote: Copy this command to the terminal to execute.`);
+    }
+  };
+
+  const openTemplateModal = () => {
+    setEditingTemplate(null);
+    setIsTemplateModalOpen(true);
+  };
+
+  const openEditTemplate = (template) => {
+    setEditingTemplate(template);
+    setIsTemplateModalOpen(true);
+  };
   // Load terminals and groups from localStorage on mount
   useEffect(() => {
     const savedGroups = localStorage.getItem(STORAGE_KEY_GROUPS);
@@ -151,6 +203,16 @@ function App() {
         console.error('Failed to parse localStorage:', e);
       }
     }
+
+    // Load templates from localStorage
+    const savedTemplates = localStorage.getItem(STORAGE_KEY_TEMPLATES);
+    if (savedTemplates) {
+      try {
+        setCommandTemplates(JSON.parse(savedTemplates));
+      } catch (e) {
+        console.error('Failed to parse templates from localStorage:', e);
+      }
+    }
   }, []);
 
   // Save terminals to localStorage whenever they change
@@ -177,6 +239,11 @@ function App() {
       localStorage.removeItem(STORAGE_KEY_ACTIVE);
     }
   }, [activeTerminal]);
+
+  // Save templates to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(commandTemplates));
+  }, [commandTemplates]);
 
   // ==================== KEYBOARD SHORTCUTS ====================
   useEffect(() => {
@@ -466,6 +533,13 @@ function App() {
           >
             ≡
           </button>
+          <button
+            className="template-button"
+            onClick={openTemplateModal}
+            title="Command Templates"
+          >
+            📋
+          </button>
         </div>
         <div className="sidebar-right">
           {/* Search Input */}
@@ -487,6 +561,59 @@ function App() {
               </button>
             )}
           </div>
+
+          {/* Templates Section */}
+          {commandTemplates.length > 0 && (
+            <div className="templates-section">
+              <div className="templates-header" onClick={() => setShowTemplates(!showTemplates)}>
+                <span>📋 Templates</span>
+                <span className="templates-count">({commandTemplates.length})</span>
+              </div>
+              {showTemplates && (
+                <div className="templates-list">
+                  {commandTemplates.map(template => (
+                    <div
+                      key={template.id}
+                      className="template-item"
+                      onClick={() => executeTemplate(template.id)}
+                    >
+                      <div className="template-info">
+                        <span className="template-name">{template.name}</span>
+                        {template.description && (
+                          <span className="template-description">{template.description}</span>
+                        )}
+                      </div>
+                      <div className="template-actions">
+                        <button
+                          className="template-edit"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditTemplate(template);
+                          }}
+                          title="Edit"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          className="template-delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Delete template "${template.name}"?`)) {
+                              deleteTemplate(template.id);
+                            }
+                          }}
+                          title="Delete"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <SortableTerminalList
             groups={groups}
             terminals={terminals}
@@ -656,6 +783,25 @@ function App() {
           </div>
         </div>
       </Modal>
+
+      {/* Template Modal */}
+      <TemplateModal
+        isOpen={isTemplateModalOpen}
+        onClose={() => {
+          setIsTemplateModalOpen(false);
+          setEditingTemplate(null);
+        }}
+        onSave={(template) => {
+          if (editingTemplate) {
+            updateTemplate(editingTemplate.id, template);
+          } else {
+            addTemplate(template);
+          }
+          setIsTemplateModalOpen(false);
+          setEditingTemplate(null);
+        }}
+        editingTemplate={editingTemplate}
+      />
 
       {/* Context Menu */}
       <ContextMenu

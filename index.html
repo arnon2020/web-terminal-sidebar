@@ -363,6 +363,106 @@
       color: white;
     }
 
+    /* ==================== TEMPLATES ==================== */
+    .templates-section {
+      border-bottom: 1px solid #0f3460;
+    }
+
+    .templates-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      cursor: pointer;
+      user-select: none;
+      background: #0f3460;
+      font-size: 11px;
+      font-weight: 600;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: background 0.2s;
+    }
+
+    .templates-header:hover {
+      background: #1a4a6a;
+      color: #eee;
+    }
+
+    .templates-count {
+      color: #555;
+    }
+
+    .templates-list {
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .template-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+      gap: 8px;
+    }
+
+    .template-item:hover {
+      background: #1f1f3a;
+    }
+
+    .template-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .template-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: #eee;
+      display: block;
+    }
+
+    .template-description {
+      font-size: 10px;
+      color: #666;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .template-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .template-item:hover .template-actions {
+      opacity: 1;
+    }
+
+    .template-edit,
+    .template-delete {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+      border-radius: 3px;
+      transition: all 0.2s;
+    }
+
+    .template-edit:hover {
+      background: #1a4a6a;
+    }
+
+    .template-delete:hover {
+      background: #e94560;
+    }
+
     /* ==================== TERMINAL EMOJI ==================== */
     .terminal-emoji {
       font-size: 16px;
@@ -562,6 +662,66 @@
 
     .modal-btn-primary:hover {
       background: #ff6b6b;
+    }
+
+    .modal-textarea {
+      width: 100%;
+      background: #0d0d1a;
+      border: 1px solid #2a2a4a;
+      border-radius: 4px;
+      padding: 10px 12px;
+      color: #eee;
+      font-size: 14px;
+      outline: none;
+      font-family: 'Consolas', 'Monaco', monospace;
+      resize: vertical;
+      transition: border-color 0.2s;
+    }
+
+    .modal-textarea:focus {
+      border-color: #e94560;
+    }
+
+    .modal-textarea::placeholder {
+      color: #555;
+    }
+
+    .template-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .template-variables {
+      padding: 8px 12px;
+      background: #0d0d1a;
+      border-radius: 4px;
+      border: 1px solid #2a2a4a;
+    }
+
+    .template-modal-content {
+      max-width: 500px;
+    }
+
+    .template-button {
+      width: 40px;
+      height: 40px;
+      background: #0f3460;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px auto;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .template-button:hover {
+      background: #1a4a6a;
+      color: #eee;
     }
 
     .main-content {
