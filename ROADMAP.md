@@ -130,7 +130,7 @@ useEffect(() => {
 | 12 | Command Templates | ✅ DONE | 2026-03-11 | 2026-03-11 |
 | 13 | Terminal Profiles | ✅ DONE | 2026-03-11 | 2026-03-11 |
 | 14 | Auto-reconnect | ✅ DONE | 2026-03-11 | 2026-03-11 |
-| 15 | Export/Import Sessions | ⬜ TODO | - | - |
+| 15 | Export/Import Sessions | ✅ DONE | 2026-03-11 | 2026-03-11 |
 
 ### Details
 
@@ -170,6 +170,15 @@ useEffect(() => {
 - ✅ Auto-reconnect enabled by default
 - ✅ data-terminal-id attribute for iframe targeting
 
+#### 15. Export/Import Sessions ✅
+- ✅ Done: Export session to JSON file (terminals, groups, templates, profiles)
+- ✅ Import session from JSON file with validation
+- ✅ File naming with date: web-terminal-session-YYYY-MM-DD.json
+- ✅ Export button (📤) and Import button (📥) in sidebar
+- ✅ Summary alert on import (terminals, groups, templates, profiles count)
+- ✅ Preserves profile references in terminals
+- ✅ Blob API for download, FileReader API for upload
+
 ---
 
 ## 🔮 Future Ideas
@@ -203,12 +212,14 @@ useEffect(() => {
 |-------|-------|------|---------|----------|
 | Phase 1 | 5 | 5 | 0 | **100%** ✅ |
 | Phase 2 | 5 | 5 | 0 | **100%** ✅ |
-| Phase 3 | 5 | 4 | 0 | **80%** |
-| **Total** | **15** | **14** | **0** | **93%** |
+| Phase 3 | 5 | 5 | 0 | **100%** ✅ |
+| **Total** | **15** | **15** | **0** | **100%** ✅ |
 
 ---
 
 _Changelog:_
+- 2026-03-11 02:00: Phase 3 #15 Done - Export/Import Sessions (JSON backup/restore)
+- 2026-03-11 02:00: **PHASE 3 COMPLETE** - All 5 features done (Split View, Templates, Profiles, Auto-reconnect, Export/Import)
 - 2026-03-11 01:30: Phase 3 #14 Done - Auto-reconnect (auto-refresh on disconnect)
 - 2026-03-11 01:00: Phase 3 #13 Done - Terminal Profiles (shell, workingDir, envVars)
 - 2026-03-11 00:30: Phase 3 #12 Done - Command Templates (modal, localStorage, CRUD)

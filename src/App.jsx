@@ -240,6 +240,83 @@ function App() {
     setIsProfileModalOpen(true);
   };
 
+  // ==================== EXPORT / IMPORT SESSIONS ====================
+  const exportSession = () => {
+    const sessionData = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      terminals: terminals.map(t => ({
+        id: t.id,
+        name: t.name,
+        groupId: t.groupId,
+        color: t.color,
+        emoji: t.emoji,
+        // Don't include connection-specific data like shell, workingDir, etc.
+        // Those should come from profiles
+        profileId: t.profileId
+      })),
+      groups: groups,
+      commandTemplates: commandTemplates,
+      terminalProfiles: terminalProfiles
+    };
+
+    // Create a blob and download
+    const blob = new Blob([JSON.stringify(sessionData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `web-terminal-session-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const importSession = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const sessionData = JSON.parse(e.target.result);
+
+        // Validate session data structure
+        if (!sessionData.version || !Array.isArray(sessionData.terminals)) {
+          alert('Invalid session file format');
+          return;
+        }
+
+        // Import data
+        if (sessionData.groups && Array.isArray(sessionData.groups)) {
+          setGroups(sessionData.groups);
+        }
+        if (sessionData.terminals && Array.isArray(sessionData.terminals)) {
+          setTerminals(sessionData.terminals);
+        }
+        if (sessionData.commandTemplates && Array.isArray(sessionData.commandTemplates)) {
+          setCommandTemplates(sessionData.commandTemplates);
+        }
+        if (sessionData.terminalProfiles && Array.isArray(sessionData.terminalProfiles)) {
+          setTerminalProfiles(sessionData.terminalProfiles);
+        }
+
+        // Reset active terminal
+        if (sessionData.terminals.length > 0) {
+          setActiveTerminal(sessionData.terminals[0].id);
+        }
+
+        alert(`Session imported successfully!\n\n${sessionData.terminals.length} terminals\n${sessionData.groups?.length || 0} groups\n${sessionData.commandTemplates?.length || 0} templates\n${sessionData.terminalProfiles?.length || 0} profiles`);
+      } catch (err) {
+        alert('Failed to import session: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+
+    // Reset input so same file can be selected again
+    event.target.value = '';
+  };
+
   // Load terminals and groups from localStorage on mount
   useEffect(() => {
     const savedGroups = localStorage.getItem(STORAGE_KEY_GROUPS);
@@ -639,6 +716,27 @@ function App() {
           >
             ⚙️
           </button>
+          <button
+            className="export-button"
+            onClick={exportSession}
+            title="Export Session"
+          >
+            📤
+          </button>
+          <button
+            className="import-button"
+            onClick={() => document.getElementById('import-file-input').click()}
+            title="Import Session"
+          >
+            📥
+          </button>
+          <input
+            id="import-file-input"
+            type="file"
+            accept=".json"
+            style={{ display: 'none' }}
+            onChange={importSession}
+          />
         </div>
         <div className="sidebar-right">
           {/* Search Input */}
