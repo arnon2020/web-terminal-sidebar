@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './components/Modal';
+import TerminalWrapper from './components/TerminalWrapper';
 import SortableTerminalList from './components/SortableTerminalList';
 import ContextMenu from './components/ContextMenu';
 import TemplateModal from './components/TemplateModal';
@@ -52,6 +53,53 @@ function App() {
   const [iframeRefs, setIframeRefs] = useState({}); // Track iframe refs for reconnect
   const [autoReconnect, setAutoReconnect] = useState(true); // Auto-reconnect enabled
 
+  // ==================== SECURITY UTILITIES ====================
+  // Sanitize ID for safe URL construction
+  const sanitizeId = (id) => {
+    // Ensure ID is a number and convert to string safely
+    const numId = typeof id === 'number' ? id : parseInt(String(id), 10);
+    if (isNaN(numId) || numId <= 0) {
+      throw new Error('Invalid terminal ID');
+    }
+    return String(numId);
+  };
+
+  // Safely parse JSON with validation
+  const safeJsonParse = (json, fallback = null, validator = null) => {
+    try {
+      const data = JSON.parse(json);
+      // Run custom validator if provided
+      if (validator && !validator(data)) {
+        console.warn('JSON validation failed, using fallback');
+        return fallback;
+      }
+      return data;
+    } catch (e) {
+      console.error('Failed to parse JSON:', e);
+      return fallback;
+    }
+  };
+
+  // Validate terminal data structure
+  const isValidTerminal = (item) => {
+    return item &&
+      typeof item === 'object' &&
+      typeof item.id === 'number' &&
+      item.id > 0 &&
+      typeof item.name === 'string' &&
+      item.name.length > 0 &&
+      item.name.length <= 100;
+  };
+
+  // Validate session data structure
+  const isValidSessionData = (data) => {
+    return data &&
+      typeof data === 'object' &&
+      data.version &&
+      typeof data.version === 'string' &&
+      Array.isArray(data.terminals);
+  };
+
   // ==================== TERMINAL STATUS TRACKING ====================
   // Update terminal connection status
   const updateTerminalStatus = (terminalId, status) => {
@@ -78,11 +126,17 @@ function App() {
 
   // Attempt to reconnect a disconnected terminal
   const attemptReconnect = (terminalId) => {
-    const iframe = document.querySelector(`iframe[data-terminal-id="${terminalId}"]`);
-    if (iframe) {
-      // Force reload the iframe
-      updateTerminalStatus(terminalId, 'loading');
-      iframe.src = `${TTYD_URL}?id=${terminalId}&reconnect=${Date.now()}`;
+    try {
+      const safeId = sanitizeId(terminalId);
+      const iframe = document.querySelector(`iframe[data-terminal-id="${safeId}"]`);
+      if (iframe) {
+        // Force reload the iframe with sanitized ID
+        updateTerminalStatus(terminalId, 'loading');
+        iframe.src = `${TTYD_URL}?id=${safeId}&reconnect=${Date.now()}`;
+      }
+    } catch (error) {
+      console.error('Failed to reconnect terminal:', error);
+      updateTerminalStatus(terminalId, 'disconnected');
     }
   };
 
@@ -278,38 +332,44 @@ function App() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      try {
-        const sessionData = JSON.parse(e.target.result);
+      // Use safe JSON parsing with validation
+      const sessionData = safeJsonParse(
+        e.target.result,
+        null,
+        isValidSessionData
+      );
 
-        // Validate session data structure
-        if (!sessionData.version || !Array.isArray(sessionData.terminals)) {
-          alert('Invalid session file format');
-          return;
-        }
-
-        // Import data
-        if (sessionData.groups && Array.isArray(sessionData.groups)) {
-          setGroups(sessionData.groups);
-        }
-        if (sessionData.terminals && Array.isArray(sessionData.terminals)) {
-          setTerminals(sessionData.terminals);
-        }
-        if (sessionData.commandTemplates && Array.isArray(sessionData.commandTemplates)) {
-          setCommandTemplates(sessionData.commandTemplates);
-        }
-        if (sessionData.terminalProfiles && Array.isArray(sessionData.terminalProfiles)) {
-          setTerminalProfiles(sessionData.terminalProfiles);
-        }
-
-        // Reset active terminal
-        if (sessionData.terminals.length > 0) {
-          setActiveTerminal(sessionData.terminals[0].id);
-        }
-
-        alert(`Session imported successfully!\n\n${sessionData.terminals.length} terminals\n${sessionData.groups?.length || 0} groups\n${sessionData.commandTemplates?.length || 0} templates\n${sessionData.terminalProfiles?.length || 0} profiles`);
-      } catch (err) {
-        alert('Failed to import session: ' + err.message);
+      if (!sessionData) {
+        alert('Invalid session file format');
+        return;
       }
+
+      // Validate and filter terminals
+      const validTerminals = sessionData.terminals ? sessionData.terminals.filter(isValidTerminal) : [];
+      if (validTerminals.length !== sessionData.terminals?.length) {
+        console.warn(`Filtered out ${sessionData.terminals.length - validTerminals.length} invalid terminals`);
+      }
+
+      // Import data with validation
+      if (sessionData.groups && Array.isArray(sessionData.groups)) {
+        setGroups(sessionData.groups);
+      }
+      if (validTerminals.length > 0) {
+        setTerminals(validTerminals);
+      }
+      if (sessionData.commandTemplates && Array.isArray(sessionData.commandTemplates)) {
+        setCommandTemplates(sessionData.commandTemplates);
+      }
+      if (sessionData.terminalProfiles && Array.isArray(sessionData.terminalProfiles)) {
+        setTerminalProfiles(sessionData.terminalProfiles);
+      }
+
+      // Reset active terminal
+      if (validTerminals.length > 0) {
+        setActiveTerminal(validTerminals[0].id);
+      }
+
+      alert(`Session imported successfully!\n\n${validTerminals.length} terminals\n${sessionData.groups?.length || 0} groups\n${sessionData.commandTemplates?.length || 0} templates\n${sessionData.terminalProfiles?.length || 0} profiles`);
     };
     reader.readAsText(file);
 
@@ -321,61 +381,51 @@ function App() {
   useEffect(() => {
     const savedGroups = localStorage.getItem(STORAGE_KEY_GROUPS);
     if (savedGroups) {
-      try {
-        setGroups(JSON.parse(savedGroups));
-      } catch (e) {
-        console.error('Failed to parse groups from localStorage:', e);
+      const parsedGroups = safeJsonParse(savedGroups, null, (data) => Array.isArray(data));
+      if (parsedGroups) {
+        setGroups(parsedGroups);
       }
     }
 
     const saved = localStorage.getItem(STORAGE_KEY_TERMINALS);
     if (saved) {
-      try {
-        const parsedTerminals = JSON.parse(saved);
-        // Migrate old terminals without color or groupId
-        const migratedTerminals = parsedTerminals.map((t, i) => ({
-          ...t,
-          groupId: t.groupId || groups[0]?.id || 'default',
-          color: t.color || TERMINAL_COLORS[i % TERMINAL_COLORS.length].name,
-          emoji: t.emoji || TERMINAL_COLORS[i % TERMINAL_COLORS.length].emoji
-        }));
-        setTerminals(migratedTerminals);
+      const parsedTerminals = safeJsonParse(saved, [], (data) => Array.isArray(data));
+      // Filter valid terminals and migrate old ones without color or groupId
+      const validTerminals = parsedTerminals.filter(isValidTerminal);
+      const migratedTerminals = validTerminals.map((t, i) => ({
+        ...t,
+        groupId: t.groupId || groups[0]?.id || 'default',
+        color: t.color || TERMINAL_COLORS[i % TERMINAL_COLORS.length].name,
+        emoji: t.emoji || TERMINAL_COLORS[i % TERMINAL_COLORS.length].emoji
+      }));
+      setTerminals(migratedTerminals);
 
         // Restore active terminal
         const savedActive = localStorage.getItem(STORAGE_KEY_ACTIVE);
         if (savedActive) {
           const activeId = parseInt(savedActive, 10);
           // Only set active if the terminal still exists
-          if (parsedTerminals.some(t => t.id === activeId)) {
+          if (validTerminals.some(t => t.id === activeId)) {
             setActiveTerminal(activeId);
-          } else if (parsedTerminals.length > 0) {
+          } else if (validTerminals.length > 0) {
             // If saved terminal doesn't exist, use first one
-            setActiveTerminal(parsedTerminals[0].id);
+            setActiveTerminal(validTerminals[0].id);
           }
         }
-      } catch (e) {
-        console.error('Failed to parse localStorage:', e);
-      }
     }
 
-    // Load templates from localStorage
+    // Load templates from localStorage with validation
     const savedTemplates = localStorage.getItem(STORAGE_KEY_TEMPLATES);
     if (savedTemplates) {
-      try {
-        setCommandTemplates(JSON.parse(savedTemplates));
-      } catch (e) {
-        console.error('Failed to parse templates from localStorage:', e);
-      }
+      const templates = safeJsonParse(savedTemplates, [], (data) => Array.isArray(data));
+      setCommandTemplates(templates);
     }
 
-    // Load profiles from localStorage
+    // Load profiles from localStorage with validation
     const savedProfiles = localStorage.getItem(STORAGE_KEY_PROFILES);
     if (savedProfiles) {
-      try {
-        setTerminalProfiles(JSON.parse(savedProfiles));
-      } catch (e) {
-        console.error('Failed to parse profiles from localStorage:', e);
-      }
+      const profiles = safeJsonParse(savedProfiles, [], (data) => Array.isArray(data));
+      setTerminalProfiles(profiles);
     }
   }, []);
 
@@ -892,48 +942,74 @@ function App() {
           splitMode ? (
             <div className={`split-container split-${splitMode}`}>
               <div className="split-pane" style={{ flex: splitPosition }}>
-                {terminals.map(terminal => (
-                  terminal.id === activeTerminal && (
-                    <iframe
-                      key={terminal.id}
-                      src={`${TTYD_URL}?id=${terminal.id}`}
-                      className="terminal-iframe active"
-                      title={terminal.name}
-                      onLoad={() => handleTerminalLoad(terminal.id)}
-                      onError={() => handleTerminalError(terminal.id)}
-                    />
-                  )
-                ))}
+                {terminals.map(terminal => {
+                  if (terminal.id === activeTerminal) {
+                    try {
+                      const safeId = sanitizeId(terminal.id);
+                      return (
+                        <iframe
+                          key={terminal.id}
+                          src={`${TTYD_URL}?id=${safeId}`}
+                          className="terminal-iframe active"
+                          title={terminal.name}
+                          data-terminal-id={safeId}
+                          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+                          referrerPolicy="no-referrer"
+                          allowFullScreen
+                          allow="clipboard-read; clipboard-write; keyboard-input"
+                          onLoad={() => handleTerminalLoad(terminal.id)}
+                          onError={() => handleTerminalError(terminal.id)}
+                        />
+                      );
+                    } catch (error) {
+                      console.error('Invalid terminal ID:', error);
+                      return null;
+                    }
+                  }
+                  return null;
+                })}
               </div>
               <div className="split-divider" onMouseDown={handleSplitMouseDown}>
                 <div className={`split-handle split-${splitMode}`}></div>
               </div>
               <div className="split-pane" style={{ flex: 100 - splitPosition }}>
-                {terminals.map(terminal => (
-                  terminal.id === secondaryTerminal && (
-                    <iframe
-                      key={terminal.id}
-                      src={`${TTYD_URL}?id=${terminal.id}`}
-                      className="terminal-iframe active"
-                      title={terminal.name}
-                      onLoad={() => handleTerminalLoad(terminal.id)}
-                      onError={() => handleTerminalError(terminal.id)}
-                    />
-                  )
-                ))}
+                {terminals.map(terminal => {
+                  if (terminal.id === secondaryTerminal) {
+                    try {
+                      const safeId = sanitizeId(terminal.id);
+                      return (
+                        <iframe
+                          key={terminal.id}
+                          src={`${TTYD_URL}?id=${safeId}`}
+                          className="terminal-iframe active"
+                          title={terminal.name}
+                          data-terminal-id={safeId}
+                          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+                          referrerPolicy="no-referrer"
+                          allowFullScreen
+                          allow="clipboard-read; clipboard-write; keyboard-input"
+                          onLoad={() => handleTerminalLoad(terminal.id)}
+                          onError={() => handleTerminalError(terminal.id)}
+                        />
+                      );
+                    } catch (error) {
+                      console.error('Invalid terminal ID:', error);
+                      return null;
+                    }
+                  }
+                  return null;
+                })}
               </div>
             </div>
           ) : (
             <div className="terminal-container">
               {terminals.map(terminal => (
-                <iframe
+                <TerminalWrapper
                   key={terminal.id}
-                  src={`${TTYD_URL}?id=${terminal.id}`}
-                  className={`terminal-iframe ${activeTerminal === terminal.id ? 'active' : ''}`}
-                  title={terminal.name}
-                  data-terminal-id={terminal.id}
-                  onLoad={() => handleTerminalLoad(terminal.id)}
-                  onError={() => handleTerminalError(terminal.id)}
+                  terminal={terminal}
+                  isActive={activeTerminal === terminal.id}
+                  onLoad={handleTerminalLoad}
+                  onError={handleTerminalError}
                 />
               ))}
             </div>
