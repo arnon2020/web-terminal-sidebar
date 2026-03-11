@@ -124,7 +124,10 @@ const SortableTerminalItem = memo(function SortableTerminalItem({
         ></span>
         <button
           className="close-terminal"
-          onClick={(e) => onRemove(terminal.id, e)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(terminal.id, e);
+          }}
           title={`Close terminal (Ctrl+W)`}
         >
           ×
