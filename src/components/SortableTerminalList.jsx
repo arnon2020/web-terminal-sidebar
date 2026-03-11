@@ -64,6 +64,11 @@ function SortableTerminalItem({
       ref={setNodeRef}
       style={style}
       className={`terminal-item ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
+      onClick={(e) => {
+        // Don't activate if editing or clicking on specific elements
+        if (editingId === terminal.id) return;
+        onActivate(terminal.id);
+      }}
       onContextMenu={(e) => onContextMenu(e, terminal.id)}
     >
       {editingId === terminal.id ? (
