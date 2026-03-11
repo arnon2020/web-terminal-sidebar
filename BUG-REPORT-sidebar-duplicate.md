@@ -179,6 +179,152 @@ After fix:
 
 ---
 
+## 🐛 Bug #3: Terminal Cannot Receive Keyboard Input (✅ FIXED)
+
+**Date**: 2026-03-11
+**Severity**: 🔴 CRITICAL (Cannot type commands)
+**Status**: ✅ FIXED
+
+### Root Cause Analysis
+
+**Multiple issues found:**
+
+1. **Sandbox attribute blocking keyboard events** - The `sandbox` attribute on the iframe was preventing keyboard input from reaching the terminal
+2. **Cross-origin restriction** - Parent (`http://localhost:3001`) and iframe (`http://localhost:7682`) are different origins
+3. **Invalid `allow` attribute** - Used `allow="keyboard-input"` which is not a valid Permissions Policy feature
+
+### Attempted Fixes
+
+**Fix 1: Remove sandbox attribute**
+```jsx
+// BEFORE:
+sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+allow="clipboard-read; clipboard-write; keyboard-input"
+
+// AFTER:
+// Removed both sandbox and allow attributes
+```
+**Result**: ✅ Works! Keyboard input now reaches the terminal
+
+### Final Solution
+
+Removed all sandbox restrictions from iframe in `TerminalWrapper.jsx`:
+```jsx
+<iframe
+  src={`${TTYD_URL}?arg=${safeId}`}
+  // No sandbox attribute - allows full functionality
+  tabIndex={isActive ? 0 : -1}
+/>
+```
+
+### Verification
+- ✅ Terminal displays correctly
+- ✅ WebSocket connection opens
+- ✅ Canvas renderer loads
+- ✅ Keyboard input works
+- ✅ Terminal content persists across reloads (via tmux)
+
+---
+
+## 🐛 Bug #4: Terminal Content Lost on Page Reload (✅ FIXED)
+
+**Date**: 2026-03-11
+**Severity**: 🟡 MEDIUM (Data loss on reload)
+**Status**: ✅ FIXED
+
+### Root Cause Analysis
+
+**Problem**: Each page reload created a new bash session, losing all command history and output.
+
+**Why this happened:**
+1. ttyd starts a new bash process for each connection
+2. No session persistence mechanism was in place
+3. URL parameter `?id=XXX` was not being used for session management
+
+### Solution: tmux Integration
+
+Created `start-ttyd-tmux.sh` that:
+1. Uses ttyd's `--url-arg` flag to pass terminal ID to a wrapper script
+2. Wrapper script creates/attaches to a tmux session named `term_<id>`
+3. tmux sessions persist across page reloads
+
+**Implementation:**
+
+```bash
+# start-ttyd-tmux.sh
+ttyd -p 7682 -W --url-arg "$WRAPPER_SCRIPT"
+
+# Wrapper script receives terminal ID as $1
+SESSION_NAME="term_${1:-main}"
+exec tmux new -A -s "$SESSION_NAME"
+```
+
+**Frontend change** in `TerminalWrapper.jsx`:
+```jsx
+// BEFORE:
+src={`${TTYD_URL}?id=${safeId}`}
+
+// AFTER:
+src={`${TTYD_URL}?arg=${safeId}`}
+```
+
+### Verification
+- ✅ Create terminal, type commands
+- ✅ Reload page (F5)
+- ✅ Terminal content preserved
+- ✅ Can continue typing in same session
+
+---
+
 ## 🎯 Priority
 
 **BLOCKING** - Cannot use app for intended purpose
+
+### Status Summary
+
+| Bug | Status | Solution |
+|-----|--------|----------|
+| #1: Sidebar Duplication | ✅ FIXED | Removed duplicate onClick handler |
+| #2: Terminal Not Displaying | ✅ FIXED | Use direct ttyd URL instead of proxy path |
+| #3: Cannot Type in Terminal | ✅ FIXED | Remove sandbox attribute from iframe |
+| #4: Content Lost on Reload | ✅ FIXED | tmux integration with `--url-arg` |
+
+---
+
+## 📝 Summary: All Bugs Fixed ✅
+
+### Root Causes & Solutions
+
+| Bug | Root Cause | Fix |
+|-----|------------|-----|
+| **Sidebar Duplication** | Double onClick handlers (parent + child) | Remove onClick from child element |
+| **Terminal Not Displaying** | Wrong URL (`/terminal` → 404) | Use direct `http://localhost:7682` |
+| **Cannot Type** | `sandbox` attribute blocking keyboard events | Remove sandbox entirely |
+| **Content Lost on Reload** | ttyd creates new bash each time | tmux sessions per terminal ID |
+
+### Files Modified
+
+1. `src/components/SortableTerminalList.jsx` - Removed duplicate onClick
+2. `src/components/TerminalWrapper.jsx` - Fixed URL, removed sandbox
+3. `start-ttyd-tmux.sh` (NEW) - tmux integration script
+
+### How to Start (Updated)
+
+```bash
+# Terminal 1: Start ttyd with tmux
+cd /home/user/web-terminal-sidebar
+./start-ttyd-tmux.sh
+
+# Terminal 2: Start frontend (choose one)
+bun run dev          # Direct Vite on port 5173
+# OR
+bun run dev:proxy    # Proxy on port 3000 → Vite 3001
+```
+
+### Persistence Behavior
+
+- Each terminal tab gets its own tmux session: `term_<id>`
+- Sessions survive page reloads
+- Sessions survive browser close/reopen
+- To list sessions: `tmux ls`
+- To kill a session: `tmux kill-session -t term_<id>`

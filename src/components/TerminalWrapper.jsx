@@ -7,7 +7,8 @@ import { useEffect, useRef, useState } from 'react';
  * Click anywhere on the wrapper to focus the iframe for typing.
  */
 
-// ttyd server URL
+// ttyd server URL - direct connection (without proxy)
+// Note: Without sandbox, keyboard input works even cross-origin
 const TTYD_URL = 'http://localhost:7682';
 
 // Security: Sanitize ID for safe URL construction
@@ -44,18 +45,19 @@ export default function TerminalWrapper({ terminal, isActive, onLoad, onError })
   return (
     <div
       ref={containerRef}
-      className="terminal-wrapper"
+      className={`terminal-wrapper ${isActive ? 'active' : ''}`}
       onClick={handleClick}
       style={{
         width: '100%',
         height: '100%',
         position: 'relative',
-        background: '#0d0d1a'
+        background: '#0d0d1a',
+        display: isActive ? 'block' : 'none'
       }}
     >
       <iframe
         ref={iframeRef}
-        src={`${TTYD_URL}?id=${safeId}`}
+        src={`${TTYD_URL}?arg=${safeId}`}
         className={`terminal-iframe ${isActive ? 'active' : ''}`}
         title={terminal.name}
         data-terminal-id={safeId}
@@ -68,11 +70,7 @@ export default function TerminalWrapper({ terminal, isActive, onLoad, onError })
           display: 'block',
           background: '#0d0d1a'
         }}
-        // Security: Sandbox attribute restricts iframe capabilities
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
-        referrerPolicy="no-referrer"
-        allowFullScreen
-        allow="clipboard-read; clipboard-write; keyboard-input"
+        // No sandbox - direct connection for full functionality
         tabIndex={isActive ? 0 : -1}
       />
 
