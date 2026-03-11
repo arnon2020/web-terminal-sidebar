@@ -7,6 +7,9 @@ import { useEffect, useRef, useState } from 'react';
  * Click anywhere on the wrapper to focus the iframe for typing.
  */
 
+// ttyd server URL
+const TTYD_URL = 'http://localhost:7682';
+
 // Security: Sanitize ID for safe URL construction
 const sanitizeId = (id) => {
   const numId = typeof id === 'number' ? id : parseInt(String(id), 10);
@@ -52,7 +55,7 @@ export default function TerminalWrapper({ terminal, isActive, onLoad, onError })
     >
       <iframe
         ref={iframeRef}
-        src={`/terminal?id=${safeId}`}
+        src={`${TTYD_URL}?id=${safeId}`}
         className={`terminal-iframe ${isActive ? 'active' : ''}`}
         title={terminal.name}
         data-terminal-id={safeId}

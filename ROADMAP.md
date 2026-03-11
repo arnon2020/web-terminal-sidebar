@@ -218,6 +218,7 @@ useEffect(() => {
 ---
 
 _Changelog:_
+- 2026-03-11 09:00: **BUG FIX** - Terminal clicking now works on entire item, not just name (user-reported)
 - 2026-03-11 08:00: **COMPREHENSIVE TESTING COMPLETE** - All 15 features verified working via Playwright (100% pass rate). See TEST-REPORT.md
 - 2026-03-11 08:00: Context menu verified - All 4 menu items (Rename, Change Color, Duplicate, Close) tested and working
 - 2026-03-11 02:00: Phase 3 #15 Done - Export/Import Sessions (JSON backup/restore)
