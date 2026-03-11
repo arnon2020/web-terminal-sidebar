@@ -128,7 +128,7 @@ useEffect(() => {
 |---|---------|--------|---------|-----------|
 | 11 | Split View (2 terminals) | ✅ DONE | 2026-03-10 | 2026-03-10 |
 | 12 | Command Templates | ✅ DONE | 2026-03-11 | 2026-03-11 |
-| 13 | Terminal Profiles | ⬜ TODO | - | - |
+| 13 | Terminal Profiles | ✅ DONE | 2026-03-11 | 2026-03-11 |
 | 14 | Auto-reconnect | ⬜ TODO | - | - |
 | 15 | Export/Import Sessions | ⬜ TODO | - | - |
 
@@ -150,8 +150,16 @@ useEffect(() => {
 - ✅ Delete with confirmation
 - ✅ Template execution with variable replacement ({terminal}, {name}, {date})
 - ✅ TemplateModal component with proper form handling
-- ✅ Done: Vertical and horizontal split view modes
-- ✅ Split view toggle buttons in sidebar (⋮ vertical, ≡ horizontal)
+
+#### 13. Terminal Profiles ✅
+- ✅ Done: ProfileModal component with shell, workingDir, envVars, startupCmd
+- ✅ Profiles persist in localStorage
+- ✅ Profiles section shows/hides based on content
+- ✅ Create terminal from profile with one click
+- ✅ Edit/delete profiles with confirmation
+- ✅ Profile stores shell type (bash, zsh, fish, sh, tmux, screen)
+- ✅ Environment variables parsing (KEY=value format)
+- ✅ Profile button (⚙️) in sidebar
 - ✅ Resizable split pane with drag handle
 - ✅ Two terminals displayed simultaneously
 - ✅ Click toggle to turn off split view
@@ -190,12 +198,13 @@ useEffect(() => {
 |-------|-------|------|---------|----------|
 | Phase 1 | 5 | 5 | 0 | **100%** ✅ |
 | Phase 2 | 5 | 5 | 0 | **100%** ✅ |
-| Phase 3 | 5 | 2 | 0 | **40%** |
-| **Total** | **15** | **12** | **0** | **80%** |
+| Phase 3 | 5 | 3 | 0 | **60%** |
+| **Total** | **15** | **13** | **0** | **87%** |
 
 ---
 
 _Changelog:_
+- 2026-03-11 01:00: Phase 3 #13 Done - Terminal Profiles (shell, workingDir, envVars)
 - 2026-03-11 00:30: Phase 3 #12 Done - Command Templates (modal, localStorage, CRUD)
 - 2026-03-10 19:45: Phase 3 #11 Done - Split View (2 terminals)
 - 2026-03-10 19:45: **PHASE 2 COMPLETE** - All 5 features done (Modal, Drag&Drop, Groups, Context Menu, Status)

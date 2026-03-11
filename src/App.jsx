@@ -3,12 +3,14 @@ import Modal from './components/Modal';
 import SortableTerminalList from './components/SortableTerminalList';
 import ContextMenu from './components/ContextMenu';
 import TemplateModal from './components/TemplateModal';
+import ProfileModal from './components/ProfileModal';
 
 const TTYD_URL = 'http://localhost:7682';
 const STORAGE_KEY_TERMINALS = 'web-terminal-terminals';
 const STORAGE_KEY_ACTIVE = 'web-terminal-active';
 const STORAGE_KEY_GROUPS = 'web-terminal-groups';
 const STORAGE_KEY_TEMPLATES = 'web-terminal-templates';
+const STORAGE_KEY_PROFILES = 'web-terminal-profiles';
 
 // Terminal color options
 const TERMINAL_COLORS = [
@@ -43,6 +45,10 @@ function App() {
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false); // Template modal
   const [editingTemplate, setEditingTemplate] = useState(null); // Template being edited
   const [showTemplates, setShowTemplates] = useState(true); // Show templates list
+  const [terminalProfiles, setTerminalProfiles] = useState([]); // Terminal profiles
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Profile modal
+  const [editingProfile, setEditingProfile] = useState(null); // Profile being edited
+  const [showProfiles, setShowProfiles] = useState(true); // Show profiles list
 
   // ==================== TERMINAL STATUS TRACKING ====================
   // Update terminal connection status
@@ -163,6 +169,58 @@ function App() {
     setEditingTemplate(template);
     setIsTemplateModalOpen(true);
   };
+
+  // ==================== TERMINAL PROFILES ====================
+  const addProfile = (profile) => {
+    const newProfile = {
+      id: Date.now(),
+      ...profile,
+      createdAt: new Date().toISOString()
+    };
+    setTerminalProfiles([...terminalProfiles, newProfile]);
+  };
+
+  const updateProfile = (id, updatedProfile) => {
+    setTerminalProfiles(terminalProfiles.map(p =>
+      p.id === id ? { ...p, ...updatedProfile } : p
+    ));
+  };
+
+  const deleteProfile = (id) => {
+    setTerminalProfiles(terminalProfiles.filter(p => p.id !== id));
+  };
+
+  const createTerminalFromProfile = (profile) => {
+    const id = Date.now();
+    const colorIndex = terminals.length % TERMINAL_COLORS.length;
+    const terminal = {
+      id,
+      groupId: groups[0]?.id || 'default',
+      name: profile.name,
+      status: 'loading',
+      color: TERMINAL_COLORS[colorIndex].name,
+      emoji: TERMINAL_COLORS[colorIndex].emoji,
+      profileId: profile.id, // Link to profile
+      shell: profile.shell,
+      workingDir: profile.workingDir,
+      envVars: profile.envVars,
+      startupCmd: profile.startupCmd
+    };
+    setTerminals([...terminals, terminal]);
+    setActiveTerminal(id);
+    updateTerminalStatus(id, 'loading');
+  };
+
+  const openProfileModal = () => {
+    setEditingProfile(null);
+    setIsProfileModalOpen(true);
+  };
+
+  const openEditProfile = (profile) => {
+    setEditingProfile(profile);
+    setIsProfileModalOpen(true);
+  };
+
   // Load terminals and groups from localStorage on mount
   useEffect(() => {
     const savedGroups = localStorage.getItem(STORAGE_KEY_GROUPS);
@@ -213,6 +271,16 @@ function App() {
         console.error('Failed to parse templates from localStorage:', e);
       }
     }
+
+    // Load profiles from localStorage
+    const savedProfiles = localStorage.getItem(STORAGE_KEY_PROFILES);
+    if (savedProfiles) {
+      try {
+        setTerminalProfiles(JSON.parse(savedProfiles));
+      } catch (e) {
+        console.error('Failed to parse profiles from localStorage:', e);
+      }
+    }
   }, []);
 
   // Save terminals to localStorage whenever they change
@@ -244,6 +312,11 @@ function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(commandTemplates));
   }, [commandTemplates]);
+
+  // Save profiles to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(terminalProfiles));
+  }, [terminalProfiles]);
 
   // ==================== KEYBOARD SHORTCUTS ====================
   useEffect(() => {
@@ -540,6 +613,13 @@ function App() {
           >
             📋
           </button>
+          <button
+            className="profile-button"
+            onClick={openProfileModal}
+            title="Terminal Profiles"
+          >
+            ⚙️
+          </button>
         </div>
         <div className="sidebar-right">
           {/* Search Input */}
@@ -600,6 +680,56 @@ function App() {
                             e.stopPropagation();
                             if (confirm(`Delete template "${template.name}"?`)) {
                               deleteTemplate(template.id);
+                            }
+                          }}
+                          title="Delete"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Profiles Section */}
+          {terminalProfiles.length > 0 && (
+            <div className="profiles-section">
+              <div className="profiles-header" onClick={() => setShowProfiles(!showProfiles)}>
+                <span>⚙️ Profiles</span>
+                <span className="profiles-count">({terminalProfiles.length})</span>
+              </div>
+              {showProfiles && (
+                <div className="profiles-list">
+                  {terminalProfiles.map(profile => (
+                    <div
+                      key={profile.id}
+                      className="profile-item"
+                      onClick={() => createTerminalFromProfile(profile)}
+                    >
+                      <div className="profile-info">
+                        <span className="profile-name">{profile.name}</span>
+                        <span className="profile-details">
+                          {profile.shell.split('/').pop()} • {profile.workingDir}
+                        </span>
+                      </div>
+                      <div className="profile-actions">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditProfile(profile);
+                          }}
+                          title="Edit"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Delete profile "${profile.name}"?`)) {
+                              deleteProfile(profile.id);
                             }
                           }}
                           title="Delete"
@@ -801,6 +931,26 @@ function App() {
           setEditingTemplate(null);
         }}
         editingTemplate={editingTemplate}
+      />
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => {
+          setIsProfileModalOpen(false);
+          setEditingProfile(null);
+        }}
+        onSave={(profile) => {
+          if (editingProfile) {
+            updateProfile(editingProfile.id, profile);
+          } else {
+            addProfile(profile);
+          }
+          setIsProfileModalOpen(false);
+          setEditingProfile(null);
+        }}
+        editingProfile={editingProfile}
+        existingProfiles={terminalProfiles}
       />
 
       {/* Context Menu */}
