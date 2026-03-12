@@ -55,26 +55,54 @@ cat > "$WRAPPER_SCRIPT" << 'WRAPPER'
 # Get terminal ID from first argument (passed by ttyd --url-arg)
 TERM_ID="${1:-main}"
 
-# Sanitize session name (only allow alphanumeric and underscore)
+# Set proper TERM for interactive programs
+export TERM=xterm-256color
+
+# Create custom shell startup script that unsets CLAUDECODE
+SHELL_WRAPPER=$(mktemp)
+cat > "$SHELL_WRAPPER" << 'INNER'
+#!/bin/bash
+# Load normal bashrc first
+if [ -f "$HOME/.bashrc" ]; then
+    source "$HOME/.bashrc"
+fi
+# Then unset CLAUDECODE for nested sessions
+unset CLAUDECODE 2>/dev/null
+unset CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 2>/dev/null
+unset CLAUDE_CODE_ENTRYPOINT 2>/dev/null
+# Exec interactive bash
+exec bash -i
+INNER
+
+chmod +x "$SHELL_WRAPPER"
+
+# Sanitize session name
 SESSION_NAME="term_$(echo "$TERM_ID" | sed 's/[^a-zA-Z0-9_]/_/g' | cut -c1-50)"
 
 # Check if session exists
 if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
     echo ">>> Reconnecting to: $SESSION_NAME"
-    echo ">>> Your previous terminal content is preserved!"
+    echo ">>> CLAUDECODE: unset (nested sessions allowed)"
     echo ""
 else
     echo ">>> Creating new session: $SESSION_NAME"
-    echo ">>> Content will survive page reloads."
+    echo ">>> CLAUDECODE: unset (nested sessions allowed)"
     echo ""
 fi
 
-# Attach to or create session (-A: create if doesn't exist)
-exec tmux new -A -s "$SESSION_NAME"
+# Attach to or create session using our wrapper shell
+exec tmux new -A -s "$SESSION_NAME" "$SHELL_WRAPPER"
 WRAPPER
 
 chmod +x "$WRAPPER_SCRIPT"
 
-# Start ttyd with --url-arg
+# Remove the marker we added for testing
+sed -i '/BASHRC_TTYD_OVERRIDE LOADED/d' /home/user/.bashrc_ttyd_override 2>/dev/null
+
+chmod +x "$WRAPPER_SCRIPT"
+
+# Start ttyd with --url-arg AND true TTY mode for interactive programs
+# -t enables true TTY mode (required for Claude, vim, htop, etc.)
+# -W preserves UTF-8 and wide characters
 # The argument from URL (?arg=XXX) is passed to the wrapper script
-ttyd -p "$PORT" -W --url-arg "$WRAPPER_SCRIPT"
+ttyd -p "$PORT" -t -W --url-arg "$WRAPPER_SCRIPT"

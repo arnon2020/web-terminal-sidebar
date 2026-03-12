@@ -171,6 +171,47 @@ web-terminal-sidebar/
 └── README.md            # This file
 ```
 
+## Using Claude Code
+
+**🎉 NEW: Full support for Claude Code CLI with interactive TTY mode!**
+
+### Installation
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+### Usage
+
+Once the web terminal is running, simply type:
+
+```bash
+claude
+```
+
+That's it! The terminal is pre-configured with:
+- ✅ **True TTY mode** enabled for full interactive support
+- ✅ **256-color terminal** for proper syntax highlighting
+- ✅ **UTF-8 support** for international characters
+
+### Example Workflow
+
+```
+┌─────────────────────────────────────┐
+│ claude-chat    │ claude help        │
+│ project-work   │ claude commit      │
+│ code-review    │ claude review      │
+│ docs-gen       │ claude docs        │
+└─────────────────────────────────────┘
+```
+
+### Tips for Claude Code
+
+- **Create dedicated terminals** for different Claude sessions
+- **Use descriptive names** like "claude-main", "claude-reviews"
+- **Session persistence** - your Claude chat survives page reloads!
+- **Full feature support** - all interactive commands work (chat, commit, review, etc.)
+
 ## Common Use Cases
 
 ### Running Multiple Services

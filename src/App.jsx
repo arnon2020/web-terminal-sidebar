@@ -7,7 +7,8 @@ import TemplateModal from './components/TemplateModal';
 import ProfileModal from './components/ProfileModal';
 
 // ==================== CONSTANTS ====================
-const TTYD_URL = 'http://localhost:7682';
+// Use relative path for proxy (works from both localhost and network)
+const TTYD_URL = '/terminal';
 
 // Storage keys
 const STORAGE_KEY_TERMINALS = 'web-terminal-terminals';

@@ -7,9 +7,9 @@ import { useEffect, useRef, useState } from 'react';
  * Click anywhere on the wrapper to focus the iframe for typing.
  */
 
-// ttyd server URL - direct connection (without proxy)
-// Note: Without sandbox, keyboard input works even cross-origin
-const TTYD_URL = 'http://localhost:7682';
+// ttyd server URL - use relative path for proxy support
+// Works from both localhost and network access
+const TTYD_URL = '/terminal';
 
 // Security: Sanitize ID for safe URL construction
 const sanitizeId = (id) => {

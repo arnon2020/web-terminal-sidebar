@@ -10,14 +10,23 @@ const TTYD_PORT = 7682;
 const ttydProxy = httpProxy.createProxyServer({
   target: `http://localhost:${TTYD_PORT}`,
   ws: true,
-  changeOrigin: false, // Don't change origin for WebSocket
+  changeOrigin: true, // Change origin to match target
   preserveHeaderKeyCase: true,
   // Preserve all headers
   onProxyReq: (proxyReq, req, res, options) => {
+    // Ensure Host header is set to ttyd for WebSocket
+    proxyReq.setHeader('Host', `localhost:${TTYD_PORT}`);
     // Ensure Origin header is set correctly for WebSocket
     if (req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket') {
       proxyReq.setHeader('Origin', `http://localhost:${TTYD_PORT}`);
+      proxyReq.setHeader('Referer', `http://localhost:${TTYD_PORT}/`);
     }
+  },
+  onProxyReqWs: (proxyReq, req, socket, options, head) => {
+    // Additional WebSocket-specific headers
+    proxyReq.setHeader('Host', `localhost:${TTYD_PORT}`);
+    proxyReq.setHeader('Origin', `http://localhost:${TTYD_PORT}`);
+    console.log('[WS PROXY REQ HEADERS]', Object.keys(proxyReq.getHeaders()).map(k => `${k}: ${proxyReq.getHeader(k)}`).join(', '));
   }
 });
 
@@ -173,10 +182,25 @@ server.on('upgrade', (req, socket, head) => {
   }
 });
 
-server.listen(PROXY_PORT, () => {
-  console.log(`Proxy server running on http://localhost:${PROXY_PORT}`);
-  console.log(`  Vite: http://localhost:${VITE_PORT} (proxied)`);
-  console.log(`  ttyd: http://localhost:${TTYD_PORT} (proxied)`);
+server.listen(PROXY_PORT, '0.0.0.0', () => {
+  // Get local IP for network access info
+  const { execSync } = require('child_process');
+  let localIP = 'localhost';
+  try {
+    const ip = execSync('ip addr show | grep "inet " | grep -v "127.0.0.1" | awk \'{print $2}\' | cut -d/ -f1 | head -1', { encoding: 'utf-8' }).trim();
+    if (ip) localIP = ip;
+  } catch (e) {}
+
+  console.log(`========================================`);
+  console.log(`  Web Terminal Sidebar Server`);
+  console.log(`========================================`);
+  console.log(``);
+  console.log(`  Local:   http://localhost:${PROXY_PORT}`);
+  console.log(`  Network: http://${localIP}:${PROXY_PORT}`);
+  console.log(``);
+  console.log(`  Vite (internal): http://localhost:${VITE_PORT}`);
+  console.log(`  ttyd (internal): http://localhost:${TTYD_PORT}`);
+  console.log(`========================================`);
 });
 
 // Cleanup on exit
