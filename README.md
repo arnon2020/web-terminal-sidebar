@@ -97,7 +97,7 @@ sudo snap install ttyd
 ttyd bash
 ```
 
-**Default URL:** http://localhost:7681
+**Default URL:** http://localhost:7682 (configured in this project)
 
 If you use a different port or URL, update `TTYD_URL` in `src/App.jsx`.
 
@@ -108,6 +108,22 @@ npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+## Quick Start
+
+**🚀 Start everything with one command:**
+
+```bash
+cd /home/user/web-terminal-sidebar
+./start.sh    # Starts proxy server (port 3000) + ttyd (port 7682)
+```
+
+Then open http://localhost:3000 in your browser.
+
+**Stop everything:**
+```bash
+./stop.sh     # Stops both servers
+```
 
 ## Usage
 
@@ -164,10 +180,17 @@ web-terminal-sidebar/
 ├── src/
 │   ├── App.jsx          # Main React component
 │   ├── main.jsx         # React entry point
+│   ├── components/
+│   │   └── TerminalWrapper.jsx  # Terminal iframe component
 │   └── index.css        # Additional styles
 ├── index.html           # HTML + CSS styles
 ├── package.json         # Dependencies
 ├── vite.config.js       # Vite configuration
+├── proxy-server.cjs     # Development proxy server (port 3000)
+├── start-ttyd-tmux.sh   # Start ttyd with tmux persistence (port 7682)
+├── start.sh             # Quick start script
+├── stop.sh              # Quick stop script
+├── CLAUDE-SUPPORT.md    # Claude Code TTY mode documentation
 └── README.md            # This file
 ```
 
@@ -211,6 +234,30 @@ That's it! The terminal is pre-configured with:
 - **Use descriptive names** like "claude-main", "claude-reviews"
 - **Session persistence** - your Claude chat survives page reloads!
 - **Full feature support** - all interactive commands work (chat, commit, review, etc.)
+
+### Auto-Cleanup for Cache Files
+
+Claude CLI creates temporary cache files (`.claude-web-v2-pty-*`) in your home directory. This setup includes **automatic cleanup** that runs when you open a new terminal:
+
+```bash
+# Cleanup happens automatically when opening terminal
+# Files are moved to: ~/.cache/claude-web/archive/
+```
+
+**Manual cleanup:**
+```bash
+# Run cleanup manually
+bash ~/.claude/scripts/cleanup-claude-web-on-start.sh
+```
+
+**Disable auto-cleanup** (remove from `~/.bashrc`):
+```bash
+# Comment out or remove these lines from ~/.bashrc:
+# export XDG_CACHE_HOME="$HOME/.cache"
+# if ls ~/.claude-web-v2-pty-* >/dev/null 2>&1; then
+#     bash "$HOME/.claude/scripts/cleanup-claude-web-on-start.sh" >/dev/null 2>&1 &
+# fi
+```
 
 ## Common Use Cases
 
@@ -264,22 +311,22 @@ ttyd bash
 docker run -d -p 7681:7681 tsl0922/ttyd
 ```
 
-### Port 7681 already in use
+### Port 7682 already in use
 
 Stop the existing process:
 ```bash
 # Find and kill the process
-lsof -ti:7681 | xargs kill -9
+lsof -ti:7682 | xargs kill -9
 
 # OR if using Docker
-docker stop $(docker ps -q -f publish=7681)
+docker stop $(docker ps -q -f publish=7682)
 ```
 
 Then restart ttyd.
 
 ### Can't connect to ttyd
 
-1. Check if ttyd is accessible: http://localhost:7681
+1. Check if ttyd is accessible: http://localhost:7682
 2. Check browser console for errors
 3. Verify `TTYD_URL` in `src/App.jsx` matches your ttyd address
 
