@@ -5,6 +5,7 @@ import SortableTerminalList from './components/SortableTerminalList';
 import ContextMenu from './components/ContextMenu';
 import TemplateModal from './components/TemplateModal';
 import ProfileModal from './components/ProfileModal';
+import VirtualKeyboard from './components/VirtualKeyboard';
 
 // ==================== CONSTANTS ====================
 // Use relative path for proxy (works from both localhost and network)
@@ -154,6 +155,9 @@ function App() {
   const [showProfiles, setShowProfiles] = useState(true);
   const [iframeRefs, setIframeRefs] = useState({});
   const [autoReconnect, setAutoReconnect] = useState(true);
+
+  // Ref for active terminal's iframe (used by VirtualKeyboard)
+  const activeTerminalRef = useRef(null);
 
   // ==================== EFFICIENT STORAGE ====================
   // Single debounced storage write instead of 6 separate effects
@@ -1036,10 +1040,9 @@ function App() {
                           className="terminal-iframe active"
                           title={terminal.name}
                           data-terminal-id={safeId}
-                          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+                          // No sandbox - allows full functionality including keyboard input
                           referrerPolicy="no-referrer"
                           allowFullScreen
-                          allow="clipboard-read; clipboard-write; keyboard-input"
                           aria-label={`Terminal: ${terminal.name}`}
                           onLoad={() => handleTerminalLoad(terminal.id)}
                           onError={() => handleTerminalError(terminal.id)}
@@ -1068,10 +1071,9 @@ function App() {
                           className="terminal-iframe active"
                           title={terminal.name}
                           data-terminal-id={safeId}
-                          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+                          // No sandbox - allows full functionality including keyboard input
                           referrerPolicy="no-referrer"
                           allowFullScreen
-                          allow="clipboard-read; clipboard-write; keyboard-input"
                           aria-label={`Terminal: ${terminal.name}`}
                           onLoad={() => handleTerminalLoad(terminal.id)}
                           onError={() => handleTerminalError(terminal.id)}
@@ -1091,6 +1093,7 @@ function App() {
               {terminals.map(terminal => (
                 <TerminalWrapper
                   key={terminal.id}
+                  ref={activeTerminal === terminal.id ? activeTerminalRef : null}
                   terminal={terminal}
                   isActive={activeTerminal === terminal.id}
                   onLoad={handleTerminalLoad}
@@ -1230,6 +1233,12 @@ function App() {
         }}
         editingProfile={editingProfile}
         existingProfiles={terminalProfiles}
+      />
+
+      {/* Virtual Keyboard for mobile/tablet */}
+      <VirtualKeyboard
+        iframeRef={activeTerminalRef}
+        isActive={activeTerminal !== null}
       />
 
       {/* Context Menu */}

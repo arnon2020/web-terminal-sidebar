@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 
 /**
  * TerminalWrapper Component
  *
  * Secure wrapper for ttyd iframe with sandbox protection.
  * Click anywhere on the wrapper to focus the iframe for typing.
+ *
+ * Exposes iframeRef via forwardRef for VirtualKeyboard integration.
  */
 
 // ttyd server URL - use relative path for proxy support
 // Works from both localhost and network access
+// Pass terminal ID as arg for tmux session isolation
 const TTYD_URL = '/terminal';
 
 // Security: Sanitize ID for safe URL construction
@@ -20,9 +23,19 @@ const sanitizeId = (id) => {
   return String(numId);
 };
 
-export default function TerminalWrapper({ terminal, isActive, onLoad, onError }) {
+const TerminalWrapper = forwardRef(function TerminalWrapper({ terminal, isActive, onLoad, onError }, ref) {
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
+
+  // Expose iframeRef to parent component for VirtualKeyboard
+  useImperativeHandle(ref, () => ({
+    getIframe: () => iframeRef.current,
+    focus: () => {
+      if (iframeRef.current) {
+        iframeRef.current.focus();
+      }
+    }
+  }), []);
 
   const handleIframeLoad = () => {
     if (onLoad) onLoad(terminal.id);
@@ -39,7 +52,7 @@ export default function TerminalWrapper({ terminal, isActive, onLoad, onError })
     }
   };
 
-  // Sanitize terminal ID for safe URL construction
+  // Sanitize terminal ID for data attribute (not used in URL anymore)
   const safeId = sanitizeId(terminal.id);
 
   return (
@@ -93,4 +106,6 @@ export default function TerminalWrapper({ terminal, isActive, onLoad, onError })
       `}</style>
     </div>
   );
-}
+});
+
+export default TerminalWrapper;

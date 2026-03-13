@@ -91,7 +91,33 @@ vite.on('error', (err) => {
 
 vite.on('exit', (code) => {
   console.log(`[VITE] exited with code ${code}`);
+  ttyd.kill();
   process.exit(code);
+});
+
+// Start ttyd terminal server with tmux wrapper for persistence
+// --url-arg passes terminal ID to wrapper script for session isolation
+// Unset CLAUDECODE to allow running claude inside the terminal
+const ttyd = spawn('ttyd', [
+  '--port', TTYD_PORT.toString(),
+  '-t',           // Enable true TTY mode (required for Claude, vim, htop)
+  '-W',          // Preserve UTF-8 and wide characters
+  '--writable',  // Allow clients to write to terminal
+  '--url-arg',   // Pass ?arg=ID to wrapper script for tmux session
+  './tmux-wrapper.sh'
+], {
+  cwd: __dirname,
+  shell: true,
+  stdio: 'inherit',
+  env: { ...process.env, CLAUDECODE: '' }
+});
+
+ttyd.on('error', (err) => {
+  console.error('[TTYD ERROR]', err);
+});
+
+ttyd.on('exit', (code) => {
+  console.log(`[TTYD] exited with code ${code}`);
 });
 
 // Create main server
@@ -207,12 +233,14 @@ server.listen(PROXY_PORT, '0.0.0.0', () => {
 process.on('SIGTERM', () => {
   console.log('[PROXY] Shutting down...');
   vite.kill();
+  ttyd.kill();
   server.close();
 });
 
 process.on('SIGINT', () => {
   console.log('[PROXY] Shutting down...');
   vite.kill();
+  ttyd.kill();
   server.close();
   process.exit(0);
 });
